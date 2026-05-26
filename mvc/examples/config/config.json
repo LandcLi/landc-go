@@ -1,0 +1,30 @@
+{
+  "server": {
+    "addr": "0.0.0.0",
+    "port": 8080,
+    "read_timeout": 60,
+    "write_timeout": 60,
+    "use_default_routes": true
+  },
+  "database": {
+    "driver": "mysql",
+    "dsn": "root:password@tcp(localhost:3306)/landc_goframe?charset=utf8mb4&parseTime=True&loc=Local",
+    "max_open_conns": 100,
+    "max_idle_conns": 10,
+    "conn_max_lifetime": 3600
+  },
+  "redis": {
+    "addr": "localhost:6379",
+    "password": "",
+    "db": 0,
+    "pool_size": 10
+  },
+  "log": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout",
+    "max_size": 100,
+    "max_backups": 3,
+    "max_age": 28
+  }
+}
