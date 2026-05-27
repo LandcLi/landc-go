@@ -108,7 +108,7 @@ landc-go/
     ├── go.mod               module github.com/LandcLi/landc-go/mvc
     └── pkg/
         ├── web/             Web 引擎（Meta Tag 路由 / 参数绑定 / 文件上传）
-        ├── di/              依赖注入容器
+        ├── di/              依赖注入容器 + Gateway 服务网关（本地/远程透明切换）
         ├── config/          配置管理（YAML / 环境变量 / 热更新）
         ├── db/              数据库（GORM + 迁移工具）
         ├── cache/           Redis 缓存
