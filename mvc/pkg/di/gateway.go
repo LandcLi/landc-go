@@ -15,8 +15,9 @@ import (
 
 // RouteInfo defines the HTTP method and path for a controller method.
 type RouteInfo struct {
-	Method string // HTTP method: GET, POST, PUT, DELETE
-	Path   string // URL path: /api/user/login
+	Method       string        // HTTP method: GET, POST, PUT, DELETE
+	Path         string        // URL path: /api/user/login
+	CtxEnrichers []CtxEnricher // Optional context enrichers (extract headers, IP, etc.)
 }
 
 // Routes maps controller method names to their HTTP route info.
@@ -91,7 +92,7 @@ func (g *Gateway[T]) RegisterRoutes(router gin.IRouter) {
 			panic(fmt.Sprintf("gateway %s: method %s not found on implementation", g.name, methodName))
 		}
 
-		handler := createGatewayHandler(method, methodName)
+		handler := createGatewayHandler(method, methodName, route)
 
 		switch route.Method {
 		case "GET":
@@ -134,7 +135,7 @@ func (g *Gateway[T]) RegisterRoutesFiltered(router gin.IRouter, methodNames []st
 			panic(fmt.Sprintf("gateway %s: method %s not found on implementation", g.name, methodName))
 		}
 
-		handler := createGatewayHandler(method, methodName)
+		handler := createGatewayHandler(method, methodName, route)
 
 		switch route.Method {
 		case "GET":
@@ -153,53 +154,151 @@ func (g *Gateway[T]) RegisterRoutesFiltered(router gin.IRouter, methodNames []st
 	}
 }
 
-// createGatewayHandler creates a Gin handler that:
-// 1. Creates a new instance of the request struct (2nd param type)
-// 2. Binds JSON body to it
-// 3. Calls the method with (ctx, req)
-// 4. Returns the response as JSON
+// createGatewayHandler creates a Gin handler that supports multiple method signatures:
 //
-// Method signature must be: func(ctx context.Context, req *XxxReq) (*XxxResp, error)
-func createGatewayHandler(method reflect.Value, methodName string) gin.HandlerFunc {
+// Standard:     func(ctx context.Context, req *XxxReq) (*XxxResp, error)
+// Void:         func(ctx context.Context, req *XxxReq) error
+// No-request:   func(ctx context.Context) (*XxxResp, error)
+// Raw-return:   func(ctx context.Context, req *XxxReq) (string/int/..., error)
+//
+// The handler also supports context enrichment via RouteInfo.CtxEnrichers.
+func createGatewayHandler(method reflect.Value, methodName string, route RouteInfo) gin.HandlerFunc {
 	methodType := method.Type()
+	numIn := methodType.NumIn()
+	numOut := methodType.NumOut()
 
-	// Validate method signature: (context.Context, *Req) -> (*Resp, error)
-	if methodType.NumIn() != 2 || methodType.NumOut() != 2 {
-		panic(fmt.Sprintf("method %s must have signature: func(ctx context.Context, req *Req) (*Resp, error)", methodName))
+	// Validate: at least 1 input (ctx), at most 2 inputs (ctx, req)
+	if numIn < 1 || numIn > 2 {
+		panic(fmt.Sprintf("method %s must have 1 or 2 parameters (ctx or ctx+req)", methodName))
+	}
+	// Validate: at least 1 output (error), at most 2 outputs (resp, error)
+	if numOut < 1 || numOut > 2 {
+		panic(fmt.Sprintf("method %s must have 1 or 2 return values (error or resp+error)", methodName))
 	}
 
-	reqType := methodType.In(1) // *XxxReq
-	if reqType.Kind() == reflect.Ptr {
-		reqType = reqType.Elem()
+	hasReqParam := numIn == 2
+	hasRespReturn := numOut == 2
+
+	var reqType reflect.Type
+	if hasReqParam {
+		reqType = methodType.In(1) // *XxxReq
+		if reqType.Kind() == reflect.Ptr {
+			reqType = reqType.Elem()
+		}
 	}
 
 	return func(c *gin.Context) {
-		// Create new request instance
-		reqPtr := reflect.New(reqType)
+		// Build context with enrichers
+		ctx := c.Request.Context()
+		if len(route.CtxEnrichers) > 0 {
+			for _, enricher := range route.CtxEnrichers {
+				ctx = enricher(ctx, c)
+			}
+		}
 
-		// Bind JSON
-		if err := c.ShouldBindJSON(reqPtr.Interface()); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		// Build call arguments
+		args := []reflect.Value{reflect.ValueOf(ctx)}
+
+		if hasReqParam {
+			reqPtr := reflect.New(reqType)
+			// Bind based on HTTP method
+			var bindErr error
+			if c.Request.Method == "GET" {
+				bindErr = c.ShouldBindQuery(reqPtr.Interface())
+			} else {
+				bindErr = c.ShouldBindJSON(reqPtr.Interface())
+			}
+			if bindErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+				return
+			}
+			args = append(args, reqPtr)
 		}
 
 		// Call method
-		ctx := c.Request.Context()
-		results := method.Call([]reflect.Value{
-			reflect.ValueOf(ctx),
-			reqPtr,
-		})
+		results := method.Call(args)
 
-		// Handle error (2nd return value)
-		if !results[1].IsNil() {
-			err := results[1].Interface().(error)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		// Handle results based on signature
+		if hasRespReturn {
+			// (resp, error) pattern
+			errVal := results[1]
+			if !errVal.IsNil() {
+				err := errVal.Interface().(error)
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			resp := results[0].Interface()
+
+			// Check if response implements Redirector interface
+			if redirector, ok := resp.(Redirector); ok {
+				c.Redirect(redirector.StatusCode(), redirector.Location())
+				return
+			}
+
+			// Check if response implements CookieSetter interface
+			if setter, ok := resp.(CookieSetter); ok {
+				for _, cookie := range setter.Cookies() {
+					c.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+				}
+			}
+
+			// Check if response implements HeaderSetter interface
+			if setter, ok := resp.(HeaderSetter); ok {
+				for k, v := range setter.Headers() {
+					c.Header(k, v)
+				}
+			}
+
+			c.JSON(http.StatusOK, resp)
+		} else {
+			// (error) pattern - void response
+			errVal := results[0]
+			if !errVal.IsNil() {
+				err := errVal.Interface().(error)
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"message": "success"})
 		}
-
-		// Return response (1st return value)
-		c.JSON(http.StatusOK, results[0].Interface())
 	}
+}
+
+// CtxEnricher is a function that enriches the context from gin.Context.
+// Use this to extract headers, IP, cookies, etc. and inject into context.
+//
+// Example:
+//
+//	func IPEnricher(ctx context.Context, c *gin.Context) context.Context {
+//	    return context.WithValue(ctx, "IP", c.ClientIP())
+//	}
+type CtxEnricher func(ctx context.Context, c *gin.Context) context.Context
+
+// Redirector interface - if a response implements this, Gateway will send a redirect.
+type Redirector interface {
+	StatusCode() int
+	Location() string
+}
+
+// CookieSetter interface - if a response implements this, Gateway will set cookies.
+type CookieSetter interface {
+	Cookies() []CookieInfo
+}
+
+// CookieInfo holds cookie parameters.
+type CookieInfo struct {
+	Name     string
+	Value    string
+	MaxAge   int
+	Path     string
+	Domain   string
+	Secure   bool
+	HttpOnly bool
+}
+
+// HeaderSetter interface - if a response implements this, Gateway will set response headers.
+type HeaderSetter interface {
+	Headers() map[string]string
 }
 
 // ============ Remote Proxy ============
