@@ -110,6 +110,49 @@ func (g *Gateway[T]) RegisterRoutes(router gin.IRouter) {
 	}
 }
 
+// RegisterRoutesFiltered registers only the specified methods to the given router.
+// This is useful for separating public and protected routes.
+//
+//	// Register only public routes
+//	gw.RegisterRoutesFiltered(r, []string{"Login", "Register"})
+//
+//	// Register protected routes with auth middleware
+//	protected := r.Group("").Use(authMiddleware)
+//	gw.RegisterRoutesFiltered(protected, []string{"GetUserInfo", "UpdateUserInfo"})
+func (g *Gateway[T]) RegisterRoutesFiltered(router gin.IRouter, methodNames []string) {
+	impl := Require[T](g.name)
+	implValue := reflect.ValueOf(impl)
+
+	for _, methodName := range methodNames {
+		route, ok := g.routes[methodName]
+		if !ok {
+			panic(fmt.Sprintf("gateway %s: no route defined for method %s", g.name, methodName))
+		}
+
+		method := implValue.MethodByName(methodName)
+		if !method.IsValid() {
+			panic(fmt.Sprintf("gateway %s: method %s not found on implementation", g.name, methodName))
+		}
+
+		handler := createGatewayHandler(method, methodName)
+
+		switch route.Method {
+		case "GET":
+			router.GET(route.Path, handler)
+		case "POST":
+			router.POST(route.Path, handler)
+		case "PUT":
+			router.PUT(route.Path, handler)
+		case "DELETE":
+			router.DELETE(route.Path, handler)
+		case "PATCH":
+			router.PATCH(route.Path, handler)
+		default:
+			router.POST(route.Path, handler)
+		}
+	}
+}
+
 // createGatewayHandler creates a Gin handler that:
 // 1. Creates a new instance of the request struct (2nd param type)
 // 2. Binds JSON body to it
