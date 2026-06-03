@@ -9,7 +9,7 @@
 | **log** | `github.com/LandcLi/landc-go/log` | 日志门面，统一接口支持 Zap / Logrus / Console | ✅ |
 | **tools** | `github.com/LandcLi/landc-go/tools` | 通用工具集（缓存 / 字符串 / 数字 / UUID / 地理 / 邮件 / Tag 验证） | ✅ |
 | **api** | `github.com/LandcLi/landc-go/api` | API 规范（统一响应结构 / 错误码体系 / 框架中间件） | ✅ |
-| **mvc** | `github.com/LandcLi/landc-go/mvc` | MVC 框架（Web / DI / ORM / Redis / JWT / gRPC / WebSocket / ...） | 依赖以上三者 |
+| **frame** | `github.com/LandcLi/landc-go/frame` | Web 全栈框架（Web / DI / ORM / Redis / JWT / gRPC / WebSocket / ...） | 依赖以上三者 |
 
 ## 快速上手
 
@@ -23,8 +23,8 @@ go get github.com/LandcLi/landc-go/tools
 # 只需要 API 规范
 go get github.com/LandcLi/landc-go/api
 
-# 使用完整 MVC 框架
-go get github.com/LandcLi/landc-go/mvc
+# 使用完整 Web 全栈框架
+go get github.com/LandcLi/landc-go/frame
 ```
 
 ### 使用示例
@@ -34,9 +34,9 @@ package main
 
 import (
     "github.com/LandcLi/landc-go/log/facade"
-    "github.com/LandcLi/landc-go/mvc/pkg/auth"
-    "github.com/LandcLi/landc-go/mvc/pkg/middleware"
-    "github.com/LandcLi/landc-go/mvc/pkg/web"
+    "github.com/LandcLi/landc-go/frame/pkg/auth"
+    "github.com/LandcLi/landc-go/frame/pkg/middleware"
+    "github.com/LandcLi/landc-go/frame/pkg/web"
 )
 
 func main() {
@@ -61,7 +61,7 @@ func main() {
 git tag log/v0.1.0 && git push origin log/v0.1.0
 git tag tools/v0.1.0 && git push origin tools/v0.1.0
 git tag api/v0.1.0 && git push origin api/v0.1.0
-git tag mvc/v0.1.0 && git push origin mvc/v0.1.0
+git tag frame/v0.1.0 && git push origin frame/v0.1.0
 ```
 
 ## 架构设计
@@ -69,7 +69,7 @@ git tag mvc/v0.1.0 && git push origin mvc/v0.1.0
 ```
 依赖方向（单向，无循环）:
 
-    mvc  →  api
+    frame  →  api
      │       │
      ├───→  log
      │
@@ -104,8 +104,8 @@ landc-go/
 │   ├── core/                Response / ErrorCode / Error
 │   ├── middleware/          Gin / GoFrame 中间件
 │   └── trace/               链路追踪
-└── mvc/                     # MVC 框架
-    ├── go.mod               module github.com/LandcLi/landc-go/mvc
+└── frame/                   # Web 全栈框架
+    ├── go.mod               module github.com/LandcLi/landc-go/frame
     └── pkg/
         ├── web/             Web 引擎（Meta Tag 路由 / 参数绑定 / 文件上传）
         ├── di/              依赖注入容器 + Gateway 服务网关（本地/远程透明切换）
