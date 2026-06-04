@@ -9,38 +9,35 @@ import (
 	"net/http"
 	"reflect"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 // RouteInfo defines the HTTP method and path for a controller method.
 type RouteInfo struct {
-	Method       string        // HTTP method: GET, POST, PUT, DELETE
-	Path         string        // URL path: /api/user/login
-	CtxEnrichers []CtxEnricher // Optional context enrichers (extract headers, IP, etc.)
+	Method string // HTTP method: GET, POST, PUT, DELETE
+	Path   string // URL path: /api/user/login
 }
 
 // Routes maps controller method names to their HTTP route info.
 type Routes map[string]RouteInfo
 
 // Gateway wraps a controller interface and provides:
-//   - Automatic Gin handler generation (server side)
 //   - Automatic HTTP proxy generation (client side)
 //   - DI integration with Provide/Override/Require
+//   - Route auto-discovery from interface method signatures
 //
 // Type parameter T must be an interface type.
+// Routes are automatically parsed from Meta tags in request structs.
 type Gateway[T any] struct {
-	name   string
-	routes Routes
+	name string
 }
 
 // NewGateway creates a new service gateway.
+// Routes are automatically discovered from the interface T.
 //
-//	gw := di.NewGateway[UserController]("user.controller", userRoutes)
-func NewGateway[T any](name string, routes Routes) *Gateway[T] {
+//	gw := di.NewGateway[UserController]("user.controller")
+func NewGateway[T any](name string) *Gateway[T] {
 	return &Gateway[T]{
-		name:   name,
-		routes: routes,
+		name: name,
 	}
 }
 
@@ -62,9 +59,13 @@ func (g *Gateway[T]) Get() T {
 
 // ProvideRemote creates an HTTP proxy client and registers it as the implementation.
 // Call this when the service is deployed remotely.
+// Routes are automatically parsed from the interface T.
 //
 //	gw.ProvideRemote("http://user-service:8081")
 func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
+	// Auto-discover routes from interface T
+	routes := parseRoutesFromInterface[T]()
+
 	cfg := &remoteConfig{
 		baseURL: baseURL,
 		timeout: 30 * time.Second,
@@ -73,214 +74,90 @@ func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
 		opt(cfg)
 	}
 
-	proxy := newProxy[T](cfg, g.routes)
+	proxy := newProxy[T](cfg, routes)
 	Override[T](g.name, proxy)
 }
 
-// RegisterRoutes automatically generates Gin handlers for all routes
-// and registers them to the given Gin engine/group.
-// Each handler: bind JSON request -> call controller method -> return JSON response.
-//
-//	gw.RegisterRoutes(ginEngine)
-func (g *Gateway[T]) RegisterRoutes(router gin.IRouter) {
-	impl := Require[T](g.name)
-	implValue := reflect.ValueOf(impl)
-
-	for methodName, route := range g.routes {
-		method := implValue.MethodByName(methodName)
-		if !method.IsValid() {
-			panic(fmt.Sprintf("gateway %s: method %s not found on implementation", g.name, methodName))
-		}
-
-		handler := createGatewayHandler(method, methodName, route)
-
-		switch route.Method {
-		case "GET":
-			router.GET(route.Path, handler)
-		case "POST":
-			router.POST(route.Path, handler)
-		case "PUT":
-			router.PUT(route.Path, handler)
-		case "DELETE":
-			router.DELETE(route.Path, handler)
-		case "PATCH":
-			router.PATCH(route.Path, handler)
-		default:
-			router.POST(route.Path, handler)
-		}
-	}
-}
-
-// RegisterRoutesFiltered registers only the specified methods to the given router.
-// This is useful for separating public and protected routes.
-//
-//	// Register only public routes
-//	gw.RegisterRoutesFiltered(r, []string{"Login", "Register"})
-//
-//	// Register protected routes with auth middleware
-//	protected := r.Group("").Use(authMiddleware)
-//	gw.RegisterRoutesFiltered(protected, []string{"GetUserInfo", "UpdateUserInfo"})
-func (g *Gateway[T]) RegisterRoutesFiltered(router gin.IRouter, methodNames []string) {
-	impl := Require[T](g.name)
-	implValue := reflect.ValueOf(impl)
-
-	for _, methodName := range methodNames {
-		route, ok := g.routes[methodName]
-		if !ok {
-			panic(fmt.Sprintf("gateway %s: no route defined for method %s", g.name, methodName))
-		}
-
-		method := implValue.MethodByName(methodName)
-		if !method.IsValid() {
-			panic(fmt.Sprintf("gateway %s: method %s not found on implementation", g.name, methodName))
-		}
-
-		handler := createGatewayHandler(method, methodName, route)
-
-		switch route.Method {
-		case "GET":
-			router.GET(route.Path, handler)
-		case "POST":
-			router.POST(route.Path, handler)
-		case "PUT":
-			router.PUT(route.Path, handler)
-		case "DELETE":
-			router.DELETE(route.Path, handler)
-		case "PATCH":
-			router.PATCH(route.Path, handler)
-		default:
-			router.POST(route.Path, handler)
-		}
-	}
-}
-
-// createGatewayHandler creates a Gin handler that supports multiple method signatures:
-//
-// Standard:     func(ctx context.Context, req *XxxReq) (*XxxResp, error)
-// Void:         func(ctx context.Context, req *XxxReq) error
-// No-request:   func(ctx context.Context) (*XxxResp, error)
-// Raw-return:   func(ctx context.Context, req *XxxReq) (string/int/..., error)
-//
-// The handler also supports context enrichment via RouteInfo.CtxEnrichers.
-func createGatewayHandler(method reflect.Value, methodName string, route RouteInfo) gin.HandlerFunc {
-	methodType := method.Type()
-	numIn := methodType.NumIn()
-	numOut := methodType.NumOut()
-
-	// Validate: at least 1 input (ctx), at most 2 inputs (ctx, req)
-	if numIn < 1 || numIn > 2 {
-		panic(fmt.Sprintf("method %s must have 1 or 2 parameters (ctx or ctx+req)", methodName))
-	}
-	// Validate: at least 1 output (error), at most 2 outputs (resp, error)
-	if numOut < 1 || numOut > 2 {
-		panic(fmt.Sprintf("method %s must have 1 or 2 return values (error or resp+error)", methodName))
-	}
-
-	hasReqParam := numIn == 2
-	hasRespReturn := numOut == 2
-
-	var reqType reflect.Type
-	if hasReqParam {
-		reqType = methodType.In(1) // *XxxReq
-		if reqType.Kind() == reflect.Ptr {
-			reqType = reqType.Elem()
-		}
-	}
-
-	return func(c *gin.Context) {
-		// Build context with enrichers
-		ctx := c.Request.Context()
-		if len(route.CtxEnrichers) > 0 {
-			for _, enricher := range route.CtxEnrichers {
-				ctx = enricher(ctx, c)
-			}
-		}
-
-		// Build call arguments
-		args := []reflect.Value{reflect.ValueOf(ctx)}
-
-		if hasReqParam {
-			reqPtr := reflect.New(reqType)
-			// Bind based on HTTP method
-			var bindErr error
-			if c.Request.Method == "GET" {
-				bindErr = c.ShouldBindQuery(reqPtr.Interface())
-			} else {
-				bindErr = c.ShouldBindJSON(reqPtr.Interface())
-			}
-			if bindErr != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
-				return
-			}
-			args = append(args, reqPtr)
-		}
-
-		// Call method
-		results := method.Call(args)
-
-		// Handle results based on signature
-		if hasRespReturn {
-			// (resp, error) pattern
-			errVal := results[1]
-			if !errVal.IsNil() {
-				err := errVal.Interface().(error)
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-
-			resp := results[0].Interface()
-
-			// Check if response implements Redirector interface
-			if redirector, ok := resp.(Redirector); ok {
-				c.Redirect(redirector.StatusCode(), redirector.Location())
-				return
-			}
-
-			// Check if response implements CookieSetter interface
-			if setter, ok := resp.(CookieSetter); ok {
-				for _, cookie := range setter.Cookies() {
-					c.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
-				}
-			}
-
-			// Check if response implements HeaderSetter interface
-			if setter, ok := resp.(HeaderSetter); ok {
-				for k, v := range setter.Headers() {
-					c.Header(k, v)
-				}
-			}
-
-			c.JSON(http.StatusOK, resp)
-		} else {
-			// (error) pattern - void response
-			errVal := results[0]
-			if !errVal.IsNil() {
-				err := errVal.Interface().(error)
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"message": "success"})
-		}
-	}
-}
-
-// CtxEnricher is a function that enriches the context from gin.Context.
-// Use this to extract headers, IP, cookies, etc. and inject into context.
+// parseRoutesFromInterface automatically discovers routes from interface T.
+// It examines each method's second parameter (request struct) and extracts Meta tags.
 //
 // Example:
 //
-//	func IPEnricher(ctx context.Context, c *gin.Context) context.Context {
-//	    return context.WithValue(ctx, "IP", c.ClientIP())
+//	type UserController interface {
+//	    Login(ctx context.Context, req *LoginReq) (*LoginResp, error)
 //	}
-type CtxEnricher func(ctx context.Context, c *gin.Context) context.Context
+//
+//	type LoginReq struct {
+//	    meta.Meta `path:"/api/user/login" method:"POST"`
+//	    Username  string `json:"username"`
+//	}
+//
+// The function will extract: routes["Login"] = {Method: "POST", Path: "/api/user/login"}
+func parseRoutesFromInterface[T any]() Routes {
+	var zero T
+	ifaceType := reflect.TypeOf(&zero).Elem()
 
-// Redirector interface - if a response implements this, Gateway will send a redirect.
+	// Ensure T is an interface
+	if ifaceType.Kind() != reflect.Interface {
+		panic(fmt.Sprintf("Gateway[T]: T must be an interface, got %v", ifaceType))
+	}
+
+	routes := make(Routes)
+
+	// Iterate over interface methods
+	for i := 0; i < ifaceType.NumMethod(); i++ {
+		method := ifaceType.Method(i)
+		methodType := method.Type
+
+		// Method must have at least 1 parameter (context.Context)
+		// and at most 2 parameters (context.Context, *Request)
+		if methodType.NumIn() < 1 || methodType.NumIn() > 2 {
+			continue
+		}
+
+		// If method has 2 parameters, the second one should be the request struct
+		if methodType.NumIn() == 2 {
+			reqType := methodType.In(1)
+
+			// Handle pointer type
+			if reqType.Kind() == reflect.Ptr {
+				reqType = reqType.Elem()
+			}
+
+			// Must be a struct
+			if reqType.Kind() != reflect.Struct {
+				continue
+			}
+
+			// Look for Meta field
+			metaField, hasMeta := reqType.FieldByName("Meta")
+			if !hasMeta {
+				continue
+			}
+
+			// Extract path and method from Meta tag
+			path := metaField.Tag.Get("path")
+			httpMethod := metaField.Tag.Get("method")
+
+			if path != "" && httpMethod != "" {
+				routes[method.Name] = RouteInfo{
+					Method: httpMethod,
+					Path:   path,
+				}
+			}
+		}
+	}
+
+	return routes
+}
+
+// Redirector interface - if a response implements this, remote proxy will handle redirect.
 type Redirector interface {
 	StatusCode() int
 	Location() string
 }
 
-// CookieSetter interface - if a response implements this, Gateway will set cookies.
+// CookieSetter interface - if a response implements this, remote proxy will set cookies.
 type CookieSetter interface {
 	Cookies() []CookieInfo
 }
@@ -296,7 +173,7 @@ type CookieInfo struct {
 	HttpOnly bool
 }
 
-// HeaderSetter interface - if a response implements this, Gateway will set response headers.
+// HeaderSetter interface - if a response implements this, remote proxy will set response headers.
 type HeaderSetter interface {
 	Headers() map[string]string
 }
@@ -370,12 +247,24 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req inter
 
 	url := p.baseURL + route.Path
 
-	data, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("marshal request failed: %w", err)
+	// Determine HTTP method from route info
+	httpMethod := route.Method
+	if httpMethod == "" {
+		httpMethod = "POST" // Default to POST if not specified
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
+	// For GET requests, don't send body
+	var httpReq *http.Request
+	var err error
+	if httpMethod == "GET" {
+		httpReq, err = http.NewRequestWithContext(ctx, httpMethod, url, nil)
+	} else {
+		data, marshalErr := json.Marshal(req)
+		if marshalErr != nil {
+			return fmt.Errorf("marshal request failed: %w", marshalErr)
+		}
+		httpReq, err = http.NewRequestWithContext(ctx, httpMethod, url, bytes.NewBuffer(data))
+	}
 	if err != nil {
 		return fmt.Errorf("create request failed: %w", err)
 	}
