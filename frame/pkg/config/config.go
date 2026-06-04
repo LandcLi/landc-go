@@ -16,6 +16,9 @@ type (
 		Database DatabaseConfig         `json:"database" yaml:"database"`
 		Redis    RedisConfig            `json:"redis" yaml:"redis"`
 		Log      LogConfig              `json:"log" yaml:"log"`
+		// Other 存储用户自定义配置项（非框架标准字段）。
+		// 从 JSON/YAML 加载时，所有不在 server/database/redis/log 下的顶级键
+		// 都会被自动捕获到此处。序列化时也会合并回顶层输出。
 		Other    map[string]interface{} `json:"-" yaml:"-"`
 	}
 
@@ -178,6 +181,7 @@ func DefaultConfig() *Config {
 			MaxBackups: 3,
 			MaxAge:     28,
 		},
+		Other: make(map[string]interface{}),
 	}
 }
 
@@ -213,4 +217,190 @@ func (c *Config) ToJSON() ([]byte, error) {
 
 func (c *Config) ToYAML() ([]byte, error) {
 	return yaml.Marshal(c)
+}
+
+// ============================================================================
+// 自定义 JSON / YAML 序列化与反序列化
+// 使得 Other 中存储的用户自定义配置项能够：
+//   1. 从文件中自动捕获（反序列化时未知键 → Other）
+//   2. 序列化时自动合并回顶层输出（Other 键 → 顶层键）
+// ============================================================================
+
+// UnmarshalJSON 自定义 JSON 反序列化，将未知顶级字段捕获到 Other 中。
+func (c *Config) UnmarshalJSON(data []byte) error {
+	// 第一步：反序列化已知字段（server/database/redis/log）
+	type Alias Config
+	if err := json.Unmarshal(data, (*Alias)(c)); err != nil {
+		return err
+	}
+
+	// 第二步：解析所有顶级键，提取未知字段
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// 移除框架标准字段
+	delete(raw, "server")
+	delete(raw, "database")
+	delete(raw, "redis")
+	delete(raw, "log")
+
+	// 剩余字段存入 Other
+	c.Other = make(map[string]interface{})
+	for k, v := range raw {
+		var val interface{}
+		if err := json.Unmarshal(v, &val); err != nil {
+			return fmt.Errorf("failed to unmarshal other key %q: %w", k, err)
+		}
+		c.Other[k] = val
+	}
+	return nil
+}
+
+// MarshalJSON 自定义 JSON 序列化，将 Other 中的字段合并到顶层输出。
+func (c *Config) MarshalJSON() ([]byte, error) {
+	type Alias Config
+	data, err := json.Marshal((*Alias)(c))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(c.Other) == 0 {
+		return data, nil
+	}
+
+	// 合并 Other 字段到顶层
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	for k, v := range c.Other {
+		result[k] = v
+	}
+	return json.Marshal(result)
+}
+
+// UnmarshalYAML 自定义 YAML 反序列化，将未知顶级字段捕获到 Other 中。
+func (c *Config) UnmarshalYAML(value *yaml.Node) error {
+	// 第一步：反序列化已知字段
+	type Alias Config
+	if err := value.Decode((*Alias)(c)); err != nil {
+		return err
+	}
+
+	// 第二步：从 YAML 节点中提取未知顶级字段
+	knownKeys := map[string]bool{
+		"server": true, "database": true, "redis": true, "log": true,
+	}
+
+	if value.Kind == yaml.MappingNode {
+		c.Other = make(map[string]interface{})
+		for i := 0; i < len(value.Content); i += 2 {
+			key := value.Content[i].Value
+			if !knownKeys[key] {
+				var val interface{}
+				if err := value.Content[i+1].Decode(&val); err != nil {
+					return fmt.Errorf("failed to decode other key %q: %w", key, err)
+				}
+				c.Other[key] = val
+			}
+		}
+	} else {
+		c.Other = make(map[string]interface{})
+	}
+	return nil
+}
+
+// MarshalYAML 自定义 YAML 序列化，将 Other 中的字段合并到顶层输出。
+func (c *Config) MarshalYAML() (interface{}, error) {
+	type Alias Config
+	data, err := yaml.Marshal((*Alias)(c))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(c.Other) == 0 {
+		var result map[string]interface{}
+		yaml.Unmarshal(data, &result)
+		return result, nil
+	}
+
+	// 合并 Other 字段到顶层
+	var result map[string]interface{}
+	if err := yaml.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	for k, v := range c.Other {
+		result[k] = v
+	}
+	return result, nil
+}
+
+// ============================================================================
+// Other 字段访问方法
+// ============================================================================
+
+// GetOther 获取 Other 中指定 key 的值，返回值和是否存在。
+func (c *Config) GetOther(key string) (interface{}, bool) {
+	if c.Other == nil {
+		return nil, false
+	}
+	v, ok := c.Other[key]
+	return v, ok
+}
+
+// SetOther 设置 Other 中指定 key 的值。
+func (c *Config) SetOther(key string, value interface{}) {
+	if c.Other == nil {
+		c.Other = make(map[string]interface{})
+	}
+	c.Other[key] = value
+}
+
+// HasOther 检查 Other 中是否存在指定 key。
+func (c *Config) HasOther(key string) bool {
+	_, ok := c.Other[key]
+	return ok
+}
+
+// DeleteOther 删除 Other 中指定 key。
+func (c *Config) DeleteOther(key string) {
+	delete(c.Other, key)
+}
+
+// UnmarshalOther 将 Other 中指定 key 的值反序列化到 target 中。
+// target 必须是指针类型。适用于将 map[string]interface{} 转为类型化结构体。
+//
+// 用法示例：
+//
+//	var jwtCfg JWTConfig
+//	err := cfg.UnmarshalOther("jwt", &jwtCfg)
+func (c *Config) UnmarshalOther(key string, target interface{}) error {
+	val, ok := c.GetOther(key)
+	if !ok {
+		return fmt.Errorf("other key %q not found", key)
+	}
+
+	// 通过 JSON 中转实现 map[string]interface{} → 类型化结构体
+	data, err := json.Marshal(val)
+	if err != nil {
+		return fmt.Errorf("failed to marshal other value for key %q: %w", key, err)
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("failed to unmarshal other key %q: %w", key, err)
+	}
+	return nil
+}
+
+// AllOther 返回 Other 的浅拷贝副本，方便遍历所有自定义配置项。
+func (c *Config) AllOther() map[string]interface{} {
+	if c.Other == nil {
+		return nil
+	}
+	result := make(map[string]interface{}, len(c.Other))
+	for k, v := range c.Other {
+		result[k] = v
+	}
+	return result
 }
