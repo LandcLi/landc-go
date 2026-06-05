@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/LandcLi/landc-go/frame/pkg/config"
+	"github.com/LandcLi/landc-go/frame/pkg/db"
 	"github.com/LandcLi/landc-go/frame/pkg/trace"
 )
 
@@ -133,6 +134,10 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 		}
 	}
 
+	if err := db.InitGlobalDBWithDefault(); err != nil {
+		return fmt.Errorf("failed to init database: %w", err)
+	}
+
 	return nil
 }
 
@@ -159,5 +164,6 @@ func (b *Bootstrap) Close() error {
 			fmt.Fprintf(os.Stderr, "Warning: failed to close component %s: %v\n", component.Name(), err)
 		}
 	}
+	db.Close()
 	return nil
 }
