@@ -37,8 +37,9 @@
 //
 // Step 4: In another service, use remote proxy (client side):
 //
-//	gw := di.NewGateway[UserController]("user.controller", UserRoutes)
-//	gw.ProvideRemote("http://user-service:8081")  // auto-generate HTTP proxy
+//	// Run 'landc gen proxy -type UserController -gateway-name user.controller' first
+//	gw := di.NewGateway[UserController]("user.controller")
+//	gw.ProvideRemote("http://user-service:8081")  // uses generated proxy code
 //
 // Step 5: Business code is the same regardless of local/remote:
 //

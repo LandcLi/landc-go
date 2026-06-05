@@ -16,6 +16,7 @@ func main() {
 
 	app.AddCommand(
 		NewInitCommand(),
+		NewGenCommand(),
 	)
 
 	ctx := context.Background()

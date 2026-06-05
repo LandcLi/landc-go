@@ -9,10 +9,25 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
 )
+
+// proxyFactories stores registered proxy factories keyed by gateway name.
+// Generated code from 'landc gen proxy' registers factories via RegisterProxyFactory.
+var proxyFactories sync.Map
+
+// RegisterProxyFactory registers a proxy factory for a gateway.
+// The generated proxy code calls this in init().
+// After registration, ProvideRemote will use this factory to create
+// the proxy and register it in the DI container.
+func RegisterProxyFactory[T any](name string, factory func(*ProxyClient) T) {
+	proxyFactories.Store(name, func(client *ProxyClient) interface{} {
+		return factory(client)
+	})
+}
 
 // RouteInfo defines the HTTP method and path for a controller method.
 type RouteInfo struct {
@@ -24,18 +39,15 @@ type RouteInfo struct {
 type Routes map[string]RouteInfo
 
 // Gateway wraps a controller interface and provides:
-//   - Automatic HTTP proxy calls via Call/CallVoid (client side)
+//   - Automatic HTTP proxy generation via ProvideRemote + code generation
 //   - DI integration with Provide/Override/Require for local mode
 //
 // Type parameter T must be an interface type.
-// Routes are automatically parsed from Meta tags in request structs.
 type Gateway[T any] struct {
-	name        string
-	proxyClient *ProxyClient
+	name string
 }
 
 // NewGateway creates a new service gateway.
-// Routes are automatically discovered from the interface T.
 //
 //	gw := di.NewGateway[UserController]("user.controller")
 func NewGateway[T any](name string) *Gateway[T] {
@@ -60,26 +72,41 @@ func (g *Gateway[T]) Get() T {
 	return Require[T](g.name)
 }
 
-// ProvideRemote creates an HTTP proxy client for remote calls.
-// After calling this, use GetClient() + di.Call to make remote method calls.
-// Routes are automatically parsed from request structs' Meta tags.
+// ProvideRemote creates an HTTP proxy client and registers it via DI.
+// Requires a proxy factory registered by generated code from 'landc gen proxy'.
+// After this, Get() returns the remote proxy and callers use the exact same interface methods.
 //
-// Remote proxy (in main.go):
+// Remote mode (in main.go):
 //
-//	userGw.ProvideRemote("http://user-service:8081")
-//	client := userGw.GetClient()
-//	resp, err := di.Call[LoginResponse](client, ctx, "Login", req)
+//	user.UserGateway.ProvideRemote("http://user-service:8081")
+//	ctrl := user.UserGateway.Get()   // same signature as local mode
+//	resp, _ := ctrl.Login(ctx, req)  // same signature as local mode
 //
-// Local proxy (in init()):
+// Local mode (in init()):
 //
-//	userGw.Provide(localImpl)
+//	user.UserGateway.Provide(localImpl)
 func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
-	g.proxyClient = NewProxyClient(baseURL, opts...)
-}
+	client := NewProxyClient(baseURL, opts...)
 
-// GetClient returns the underlying ProxyClient. Only works after ProvideRemote.
-func (g *Gateway[T]) GetClient() *ProxyClient {
-	return g.proxyClient
+	if factory, ok := proxyFactories.Load(g.name); ok {
+		fn := factory.(func(*ProxyClient) interface{})
+		proxy := fn(client)
+		if impl, ok := proxy.(T); ok {
+			Override[T](g.name, impl)
+			return
+		}
+	}
+
+	var ifaceName string
+	var zero T
+	if t := reflect.TypeOf(&zero).Elem(); t.Kind() == reflect.Interface {
+		ifaceName = t.String()
+	}
+	panic(fmt.Sprintf(
+		"Gateway[%s]: no proxy factory registered for interface %s.\n"+
+			"Run: landc gen proxy -type %s -gateway-name %s",
+		g.name, ifaceName, ifaceName, g.name,
+	))
 }
 
 // parseRoutesFromInterface automatically discovers routes from interface T.
