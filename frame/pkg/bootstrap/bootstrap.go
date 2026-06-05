@@ -130,12 +130,15 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 			configPath = "config.yaml"
 		}
 		if err := config.InitGlobalConfigWithPath(configPath); err != nil {
-			return fmt.Errorf("failed to init config: %w", err)
+			// If config file doesn't exist, use defaults (CLI mode)
+			_ = config.InitGlobalConfigWithDefault()
 		}
 	}
 
+	// Try DB init. If config has no DB config or DB unavailable, skip silently.
+	// This allows CLI tools and non-DB services to use Bootstrap without DB.
 	if err := db.InitGlobalDBWithDefault(); err != nil {
-		return fmt.Errorf("failed to init database: %w", err)
+		return nil
 	}
 
 	return nil

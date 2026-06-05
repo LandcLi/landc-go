@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/LandcLi/landc-go/frame/pkg/bootstrap"
 	"github.com/LandcLi/landc-go/frame/pkg/trace"
@@ -78,27 +80,19 @@ func (c *Command) AddOption(option string, hasValue bool) {
 	c.supportedOptions[option] = hasValue
 }
 
-// Run 运行命令
+// Run 运行命令（自动处理 Bootstrap 生命周期 + 信号监听）
 func (c *Command) Run(ctx context.Context) error {
-	return c.RunWithArgs(ctx, os.Args)
-}
-
-func (c *Command) RunWithBootstrap(ctx context.Context) error {
+	// Bootstrap 初始化（config + db）
 	if err := c.Bootstrap.Init(ctx); err != nil {
-		return err
+		return fmt.Errorf("bootstrap init failed: %w", err)
 	}
 	defer c.Bootstrap.Close()
 
+	// 信号监听（Ctrl+C / SIGTERM）
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer cancel()
+
 	return c.RunWithArgs(ctx, os.Args)
-}
-
-func (c *Command) RunWithBootstrapArgs(ctx context.Context, args []string) error {
-	if err := c.Bootstrap.Init(ctx); err != nil {
-		return err
-	}
-	defer c.Bootstrap.Close()
-
-	return c.RunWithArgs(ctx, args)
 }
 
 // RunWithArgs 使用指定的参数运行命令
@@ -201,11 +195,12 @@ func (c *Command) showHelp() {
 	}
 }
 
-// NewApp 创建一个新的应用命令
+// NewApp 创建一个新的应用命令（CLI 入口，如 landc init）
 func NewApp() *Command {
 	return &Command{
 		Name:             os.Args[0],
 		supportedOptions: make(map[string]bool),
 		optionAliases:    make(map[string]string),
+		Bootstrap:        bootstrap.New(),
 	}
 }

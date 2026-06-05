@@ -99,7 +99,6 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		"service",
 		"dao",
 		"model",
-		"sdk",
 		"sqls",
 		"internal/cmd",
 		"internal/controller/hello",
@@ -124,7 +123,8 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		{".gitignore", func(p, _ string) error { return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0644) }},
 		{"config.yaml", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0644) }},
 		{"sqls/init.sql", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "sqls", "init.sql"), []byte(sqlInitContent), 0644) }},
-		{"api/routers.go", func(p, m string) error { return createRouters(p, moduleName) }},
+
+		// routes are registered via meta.Meta tags, no routers.go needed
 		{"api/hello/hello.go", func(p, m string) error { return createHelloApi(p, moduleName) }},
 		{"api/hello/v1/say_hello.go", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "api/hello/v1", "say_hello.go"), []byte(sayHelloContent), 0644) }},
 		{"service/hello.go", func(p, m string) error { return createServiceInterface(p, moduleName) }},
@@ -182,12 +182,13 @@ import (
 )
 
 // Main is the main application command.
+// cmd.Main.Run(ctx) handles bootstrap lifecycle + signal handling.
 var Main = cmd.NewCommand("main", "start HTTP server", func(ctx context.Context, parser *cmd.Parser) error {
 	server := web.NewServer(nil)
 	if err := server.RegisterHandler(hello.GetHelloController()); err != nil {
 		return err
 	}
-	return server.RunWithBootstrap()
+	return server.RunWithContext(ctx)
 })
 `, moduleName)
 	return os.WriteFile(filepath.Join(projectPath, "internal/cmd/cmd.go"), []byte(content), 0644)
@@ -273,39 +274,6 @@ type SayHelloResponse struct {
 `
 
 // ==================== api/routers.go ====================
-
-func createRouters(projectPath, moduleName string) error {
-	content := fmt.Sprintf(`package api
-
-import (
-	"github.com/gin-gonic/gin"
-	"github.com/LandcLi/landc-go/frame/pkg/web"
-	"%s/api/hello"
-)
-
-func RegisterDefaultRouters(server *web.Server) {
-	r := server.Engine()
-
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"message": "Service is healthy",
-		})
-	})
-
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
-	if err := server.RegisterHandler(hello.GetHelloController()); err != nil {
-		panic(err)
-	}
-}
-`, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "api/routers.go"), []byte(content), 0644)
-}
 
 // ==================== api/hello/hello.go ====================
 
@@ -545,7 +513,6 @@ curl -X POST http://localhost:8080/api/hello/say \
 ├── main.go                    # Entry point: cmd.Main.Run(ctx)
 ├── config.yaml                # Server config
 ├── api/                       # Interface definitions
-│   ├── routers.go             # Route registration
 │   └── hello/
 │       ├── hello.go           # HelloController interface + Gateway
 │       └── v1/                # Request/Response types
@@ -563,7 +530,6 @@ curl -X POST http://localhost:8080/api/hello/say \
 │   ├── controller/hello/      # Controller layer
 │   ├── service_impl/hello/    # Service layer
 │   └── dao_impl/hello/        # DAO layer
-├── sdk/                       # Generated SDK (run 'landc gen proxy')
 ├── sqls/                      # SQL files
 └── go.mod
 `+"```"+`
@@ -594,14 +560,17 @@ All layers are registered via the DI container (github.com/LandcLi/landc-go/fram
 
 ### Remote Mode
 
-Generate SDK code and switch to remote mode:
+Generate SDK and switch to remote mode:
 
 `+"```bash"+`
-# Generate SDK proxy
 landc gen proxy --type=HelloController --gateway-name=hello.controller
+`+"```"+`
 
-# In internal/cmd/cmd.go: replace local with remote
+In `+"`"+`internal/cmd/cmd.go`+"`"+`, replace local with remote:
+
+`+"```go"+`
 hello.HelloGateway.ProvideRemote("http://hello-service:8080")
+ctrl := hello.HelloGateway.Get()  // same API as local
 `+"```"+`
 
 ## License

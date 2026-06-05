@@ -9,16 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/LandcLi/landc-go/frame/pkg/bootstrap"
 	"github.com/LandcLi/landc-go/log/facade"
 	"github.com/gin-gonic/gin"
 )
 
 type (
 	Server struct {
-		engine    *gin.Engine
-		config    *ServerConfig
-		bootstrap *bootstrap.Bootstrap
+		engine *gin.Engine
+		config *ServerConfig
 	}
 
 	ServerConfig struct {
@@ -52,18 +50,13 @@ func NewServer(config *ServerConfig) *Server {
 	}
 
 	return &Server{
-		engine:    gin.Default(),
-		config:    config,
-		bootstrap: bootstrap.New(),
+		engine: gin.Default(),
+		config: config,
 	}
 }
 
 func (s *Server) Engine() *gin.Engine {
 	return s.engine
-}
-
-func (s *Server) Bootstrap() *bootstrap.Bootstrap {
-	return s.bootstrap
 }
 
 // Run 启动服务（阻塞，支持优雅停机）
@@ -113,15 +106,52 @@ func (s *Server) Run(addr ...string) error {
 	return nil
 }
 
-// RunWithBootstrap 使用 Bootstrap 启动（包含初始化和优雅停机）
-func (s *Server) RunWithBootstrap(addr ...string) error {
-	ctx := context.Background()
-	if err := s.bootstrap.Init(ctx); err != nil {
-		return fmt.Errorf("bootstrap init failed: %w", err)
+// RunWithContext 使用上下文启动服务，ctx 取消时自动优雅停机
+// 配合 cmd.Command.Run() 的信号处理使用：
+//
+//	cmd.NewCommand("main", "", func(ctx context.Context, parser *cmd.Parser) error {
+//	    server := web.NewServer(nil)
+//	    server.RegisterHandler(...)
+//	    return server.RunWithContext(ctx)
+//	})
+func (s *Server) RunWithContext(ctx context.Context, addr ...string) error {
+	listenAddr := s.config.Addr
+	if len(addr) > 0 {
+		listenAddr = addr[0]
 	}
-	defer s.bootstrap.Close()
 
-	return s.Run(addr...)
+	srv := &http.Server{
+		Addr:         listenAddr,
+		Handler:      s.engine,
+		ReadTimeout:  s.config.ReadTimeout,
+		WriteTimeout: s.config.WriteTimeout,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		facade.Info("server starting", facade.Field{Key: "addr", Value: listenAddr})
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("server start failed: %w", err)
+	case <-ctx.Done():
+		facade.Info("shutdown signal received")
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.config.ShutdownTimeout)
+	defer cancel()
+
+	facade.Info("server shutting down...")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	facade.Info("server stopped gracefully")
+	return nil
 }
 
 // RunSimple 简单启动（不支持优雅停机，用于测试）
