@@ -217,6 +217,13 @@ logs/
 const configYamlContent = `server:
   addr: "0.0.0.0"
   port: 8080
+
+database:
+  driver: "mysql"
+  dsn: "root:password@tcp(localhost:3306)/database?charset=utf8mb4&parseTime=True&loc=Local"
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600
 `
 
 const sqlInitContent = `-- Example SQL for hello module
