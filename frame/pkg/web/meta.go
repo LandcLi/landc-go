@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -28,7 +29,8 @@ func parseMethodMeta(method reflect.Method) (*MethodMeta, error) {
 	}
 
 	paramIndex := 1
-	if methodType.NumIn() > 1 && methodType.In(1).String() == "*web.LandcContext" {
+	contextInterface := reflect.TypeOf((*context.Context)(nil)).Elem()
+	if methodType.NumIn() > 1 && methodType.In(1).Implements(contextInterface) {
 		paramIndex = 2
 	}
 

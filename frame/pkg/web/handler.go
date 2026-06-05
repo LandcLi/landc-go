@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -30,16 +31,19 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 		hasContext := false
 		paramIndex := 1
 
+		// 检查方法第一个参数是否是 context.Context 接口
 		if methodType.NumIn() > 1 {
 			firstParamType := methodType.In(1)
-			if firstParamType.String() == "*web.LandcContext" {
+			contextInterface := reflect.TypeOf((*context.Context)(nil)).Elem()
+			if firstParamType.Implements(contextInterface) {
 				hasContext = true
 				paramIndex = 2
 			}
 		}
 
 		if hasContext {
-			args = append(args, reflect.ValueOf(newLandcContext(c)))
+			// *gin.Context 实现了 context.Context，直接传入
+			args = append(args, reflect.ValueOf(c))
 		}
 
 		if methodType.NumIn() > paramIndex {
