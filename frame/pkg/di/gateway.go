@@ -8,7 +8,10 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
+
+	"github.com/LandcLi/landc-go/frame/pkg/meta"
 )
 
 // RouteInfo defines the HTTP method and path for a controller method.
@@ -63,9 +66,6 @@ func (g *Gateway[T]) Get() T {
 //
 //	gw.ProvideRemote("http://user-service:8081")
 func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
-	// Auto-discover routes from interface T
-	routes := parseRoutesFromInterface[T]()
-
 	cfg := &remoteConfig{
 		baseURL: baseURL,
 		timeout: 30 * time.Second,
@@ -74,7 +74,7 @@ func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
 		opt(cfg)
 	}
 
-	proxy := newProxy[T](cfg, routes)
+	proxy := newProxy[T](cfg)
 	Override[T](g.name, proxy)
 }
 
@@ -207,7 +207,7 @@ func WithHeaders(headers map[string]string) RemoteOption {
 
 // newProxy creates a dynamic proxy that implements interface T by making HTTP calls.
 // It uses reflect.MakeFunc to generate method implementations at runtime.
-func newProxy[T any](cfg *remoteConfig, routes Routes) T {
+func newProxy[T any](cfg *remoteConfig) T {
 	httpClient := cfg.httpClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.timeout}
@@ -216,18 +216,13 @@ func newProxy[T any](cfg *remoteConfig, routes Routes) T {
 	var zero T
 	ifaceType := reflect.TypeOf(&zero).Elem()
 
-	// We need to create a struct that implements the interface T.
-	// Since Go doesn't support dynamic interface implementation via reflect alone,
-	// we use a proxyImpl struct with a dispatch map.
 	proxy := &proxyDispatcher{
 		baseURL:    cfg.baseURL,
 		httpClient: httpClient,
 		headers:    cfg.headers,
-		routes:     routes,
 	}
 
-	// Build the proxy using reflect to create a value that satisfies T
-	return buildProxy[T](proxy, ifaceType, routes)
+	return buildProxy[T](proxy, ifaceType)
 }
 
 // proxyDispatcher handles HTTP calls for the proxy.
@@ -235,23 +230,37 @@ type proxyDispatcher struct {
 	baseURL    string
 	httpClient *http.Client
 	headers    map[string]string
-	routes     Routes
 }
 
 // call makes an HTTP request to the remote service.
+// It dynamically resolves the route (path + method) from the request struct's meta.Meta tag.
 func (p *proxyDispatcher) call(ctx context.Context, methodName string, req interface{}, respPtr interface{}) error {
-	route, ok := p.routes[methodName]
-	if !ok {
-		return fmt.Errorf("no route defined for method %s", methodName)
+	// Dynamically resolve route from request struct's meta.Meta tag
+	reqValue := reflect.ValueOf(req)
+	reqType := reqValue.Type()
+	if reqType.Kind() == reflect.Ptr {
+		reqType = reqType.Elem()
 	}
 
-	url := p.baseURL + route.Path
-
-	// Determine HTTP method from route info
-	httpMethod := route.Method
+	var httpMethod, path string
+	if reqType.Kind() == reflect.Struct {
+		metaData := meta.Data(reflect.New(reqType).Elem().Interface())
+		if p, ok := metaData["path"].(string); ok {
+			path = p
+		}
+		if m, ok := metaData["method"].(string); ok {
+			httpMethod = m
+		}
+	}
+	if path == "" {
+		// Fallback: use method name as path
+		path = "/" + strings.ToLower(methodName)
+	}
 	if httpMethod == "" {
-		httpMethod = "POST" // Default to POST if not specified
+		httpMethod = "POST"
 	}
+
+	url := p.baseURL + path
 
 	// For GET requests, don't send body
 	var httpReq *http.Request
@@ -306,25 +315,14 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req inter
 }
 
 // buildProxy creates a concrete implementation of interface T using reflect.
-// Since Go doesn't support dynamic proxy via reflect.MakeFunc for interfaces directly,
-// we return a *proxyWrapper[T] that the caller must type-assert.
-// However, for this to work with generics, we use a different approach:
-// The proxy struct embeds method dispatchers.
-//
-// NOTE: Due to Go's type system limitations, the proxy is implemented as a
-// concrete struct. The caller's interface T must match the ProxyClient interface pattern.
-// For production use, consider code generation (landc gen proxy) for zero-reflection overhead.
-func buildProxy[T any](dispatcher *proxyDispatcher, ifaceType reflect.Type, routes Routes) T {
-	// Create a ProxyClient that wraps the dispatcher
+func buildProxy[T any](dispatcher *proxyDispatcher, ifaceType reflect.Type) T {
 	client := &ProxyClient{dispatcher: dispatcher}
 
-	// Try to convert to T
 	var result interface{} = client
 	if v, ok := result.(T); ok {
 		return v
 	}
 
-	// If direct conversion fails, panic with helpful message
 	panic(fmt.Sprintf(
 		"cannot create proxy for %v: interface methods must match ProxyClient pattern. "+
 			"Use 'landc gen proxy' for code generation, or implement the interface manually with ProxyClient.Call()",
@@ -348,10 +346,11 @@ type ProxyClient struct {
 	dispatcher *proxyDispatcher
 }
 
-// NewProxyClient creates a ProxyClient for the given base URL and routes.
+// NewProxyClient creates a ProxyClient for the given base URL.
+// Routes are automatically discovered from the request struct's meta.Meta tags.
 //
-//	client := di.NewProxyClient("http://user-service:8081", userRoutes)
-func NewProxyClient(baseURL string, routes Routes, opts ...RemoteOption) *ProxyClient {
+//	client := di.NewProxyClient("http://user-service:8081")
+func NewProxyClient(baseURL string, opts ...RemoteOption) *ProxyClient {
 	cfg := &remoteConfig{
 		baseURL: baseURL,
 		timeout: 30 * time.Second,
@@ -370,7 +369,6 @@ func NewProxyClient(baseURL string, routes Routes, opts ...RemoteOption) *ProxyC
 			baseURL:    cfg.baseURL,
 			httpClient: httpClient,
 			headers:    cfg.headers,
-			routes:     routes,
 		},
 	}
 }

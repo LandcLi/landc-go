@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
 	"github.com/LandcLi/landc-go/frame/pkg/web"
+	"github.com/gin-gonic/gin"
 )
 
 type (
@@ -31,10 +33,8 @@ type (
 	}
 )
 
-func (c *AuthController) Login(ctx *web.LandcContext, req *LoginRequest) (*LoginResponse, error) {
-	fmt.Printf("Login request from %s\n", ctx.ClientIP())
-
-	ctx.SetHeader("X-Request-ID", ctx.GetHeader("X-Request-ID"))
+func (c *AuthController) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error) {
+	fmt.Printf("Login request from %v\n", ctx)
 
 	if req.Username == "admin" && req.Password == "admin" {
 		return &LoginResponse{
@@ -46,14 +46,14 @@ func (c *AuthController) Login(ctx *web.LandcContext, req *LoginRequest) (*Login
 	return nil, fmt.Errorf("invalid credentials")
 }
 
-func (c *AuthController) GetProfile(ctx *web.LandcContext, req *GetProfileRequest) (*GetProfileResponse, error) {
-	authHeader := ctx.GetHeader("Authorization")
-
-	if authHeader == "" {
-		return nil, fmt.Errorf("unauthorized")
+func (c *AuthController) GetProfile(ctx context.Context, req *GetProfileRequest) (*GetProfileResponse, error) {
+	if gc, ok := ctx.(*gin.Context); ok {
+		authHeader := gc.GetHeader("Authorization")
+		if authHeader == "" {
+			return nil, fmt.Errorf("unauthorized")
+		}
+		fmt.Printf("Profile request with token: %s\n", authHeader)
 	}
-
-	fmt.Printf("Profile request with token: %s\n", authHeader)
 
 	return &GetProfileResponse{
 		Username: "admin",
