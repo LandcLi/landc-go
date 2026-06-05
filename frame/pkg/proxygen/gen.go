@@ -4,8 +4,8 @@
 //
 //	landc gen proxy -type UserController -gateway-name user.controller
 //
-// This generates a file in the same package containing a proxy struct
-// that implements the interface using di.ProxyClient.
+// This generates a file in the sdk/ directory of the project, producing a
+// proxy struct that implements the interface using di.ProxyClient.
 package proxygen
 
 import (
@@ -23,27 +23,29 @@ import (
 type Config struct {
 	InterfaceName string // e.g. "UserController"
 	GatewayName   string // e.g. "user.controller"
-	Dir           string // Package directory (default: current directory)
-	Output        string // Output file (default: {dir}/{type}_proxy_gen.go)
+	Dir           string // Interface package directory (default: current directory)
+	OutDir        string // Output directory (default: ./sdk relative to go.mod)
+	SdkPkgName    string // SDK package name (default: "sdk")
+	Output        string // Output file (optional, overrides OutDir+SdkPkgName)
 }
 
 // typeString converts an ast.Expr to its string representation.
-func typeString(expr ast.Expr, pkgAliases map[string]string) string {
+func typeString(expr ast.Expr) string {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		return t.Name
 	case *ast.StarExpr:
-		return "*" + typeString(t.X, pkgAliases)
+		return "*" + typeString(t.X)
 	case *ast.SelectorExpr:
-		pkgName := typeString(t.X, pkgAliases)
+		pkgName := typeString(t.X)
 		return pkgName + "." + t.Sel.Name
 	case *ast.ArrayType:
 		if t.Len == nil {
-			return "[]" + typeString(t.Elt, pkgAliases)
+			return "[]" + typeString(t.Elt)
 		}
-		return "[...]" + typeString(t.Elt, pkgAliases)
+		return "[...]" + typeString(t.Elt)
 	case *ast.MapType:
-		return fmt.Sprintf("map[%s]%s", typeString(t.Key, pkgAliases), typeString(t.Value, pkgAliases))
+		return fmt.Sprintf("map[%s]%s", typeString(t.Key), typeString(t.Value))
 	default:
 		var buf strings.Builder
 		_ = printer.Fprint(&buf, token.NewFileSet(), expr)
@@ -54,10 +56,10 @@ func typeString(expr ast.Expr, pkgAliases map[string]string) string {
 // methodType extracts the method signature from a field in an interface.
 type methodType struct {
 	Name       string
-	Params     string // parameter list as string, e.g. "ctx context.Context, req *v1.LoginRequest"
-	Results    string // return list as string, e.g. "*v1.LoginResponse, error"
-	ReqType    string // request type expression, e.g. "*v1.LoginRequest"
-	RespType   string // response type expression, e.g. "*v1.LoginResponse"
+	Params     string // parameter list as string
+	Results    string // return list as string
+	ReqType    string // request type expression
+	RespType   string // response type expression
 }
 
 // checkTypeRefs checks if a type expression references any import aliases.
@@ -67,6 +69,36 @@ func checkTypeRefs(typeExpr string, aliases map[string]string, used map[string]b
 			used[alias] = true
 		}
 	}
+}
+
+// findGoModDir walks up from dir to find the directory containing go.mod.
+func findGoModDir(dir string) string {
+	dir, _ = filepath.Abs(dir)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// readModuleName reads the module name from go.mod in the given directory.
+func readModuleName(modDir string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(modDir, "go.mod"))
+	if err != nil {
+		return "", fmt.Errorf("read go.mod: %w", err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			return strings.TrimSpace(line[7:]), nil
+		}
+	}
+	return "", fmt.Errorf("module name not found in go.mod")
 }
 
 // Generate generates proxy code for the given interface.
@@ -80,14 +112,13 @@ func Generate(cfg Config) error {
 		}
 	}
 
-	// Parse the directory
+	// Parse the interface package directory
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dir, nil, 0)
 	if err != nil {
 		return fmt.Errorf("parse directory %s: %w", dir, err)
 	}
 
-	// Find the package
 	var pkg *ast.Package
 	for _, p := range pkgs {
 		pkg = p
@@ -97,29 +128,26 @@ func Generate(cfg Config) error {
 		return fmt.Errorf("no Go package found in %s", dir)
 	}
 
-	// Build import alias map and find the interface
-	importAliases := make(map[string]string) // alias -> full path
+	// Collect imports and find the interface
+	importAliases := make(map[string]string) // alias -> full import path
 	var ifaceMethods []methodType
 	var pkgName string
 
 	for _, file := range pkg.Files {
 		pkgName = file.Name.Name
 
-		// Collect import aliases
 		for _, imp := range file.Imports {
 			path := strings.Trim(imp.Path.Value, "\"")
 			alias := ""
 			if imp.Name != nil {
 				alias = imp.Name.Name
 			} else {
-				// Default alias is the last component
 				parts := strings.Split(path, "/")
 				alias = parts[len(parts)-1]
 			}
 			importAliases[alias] = path
 		}
 
-		// Find the interface type
 		for _, decl := range file.Decls {
 			genDecl, ok := decl.(*ast.GenDecl)
 			if !ok || genDecl.Tok != token.TYPE {
@@ -138,10 +166,9 @@ func Generate(cfg Config) error {
 					continue
 				}
 
-				// Extract methods
 				for _, method := range iface.Methods.List {
 					if len(method.Names) == 0 {
-						continue // embedded interface, skip for now
+						continue
 					}
 					mt := methodType{Name: method.Names[0].Name}
 
@@ -150,15 +177,13 @@ func Generate(cfg Config) error {
 						continue
 					}
 
-					// Extract request type (second param)
 					if funcType.Params != nil && len(funcType.Params.List) >= 2 {
 						paramType := funcType.Params.List[1].Type
-						mt.ReqType = typeString(paramType, importAliases)
+						mt.ReqType = typeString(paramType)
 
-						// Build params string
 						paramParts := make([]string, 0, len(funcType.Params.List))
 						for _, p := range funcType.Params.List {
-							t := typeString(p.Type, importAliases)
+							t := typeString(p.Type)
 							names := make([]string, len(p.Names))
 							for i, n := range p.Names {
 								names[i] = n.Name
@@ -172,15 +197,13 @@ func Generate(cfg Config) error {
 						mt.Params = strings.Join(paramParts, ", ")
 					}
 
-					// Extract response type (first return value)
 					if funcType.Results != nil && len(funcType.Results.List) >= 1 {
 						respType := funcType.Results.List[0].Type
-						mt.RespType = typeString(respType, importAliases)
+						mt.RespType = typeString(respType)
 
-						// Build results string
 						resultParts := make([]string, 0, len(funcType.Results.List))
 						for _, r := range funcType.Results.List {
-							t := typeString(r.Type, importAliases)
+							t := typeString(r.Type)
 							if len(r.Names) > 0 {
 								names := make([]string, len(r.Names))
 								for i, n := range r.Names {
@@ -207,33 +230,65 @@ func Generate(cfg Config) error {
 	// Determine output file path
 	outputPath := cfg.Output
 	if outputPath == "" {
-		outputPath = filepath.Join(dir, strings.ToLower(cfg.InterfaceName)+"_proxy_gen.go")
+		sdkPkgName := cfg.SdkPkgName
+		if sdkPkgName == "" {
+			sdkPkgName = "sdk"
+		}
+		outDir := cfg.OutDir
+		if outDir == "" {
+			if modDir := findGoModDir(dir); modDir != "" {
+				outDir = filepath.Join(modDir, "sdk")
+			} else {
+				outDir = filepath.Join(dir, "..", "sdk")
+			}
+		}
+		os.MkdirAll(outDir, 0755)
+		// Use lowercase interface name for the file
+		fileName := strings.ToLower(cfg.InterfaceName[:1]) + cfg.InterfaceName[1:] + "_proxy_gen.go"
+		outputPath = filepath.Join(outDir, fileName)
+	}
+
+	// Compute interface package import path
+	modDir := findGoModDir(dir)
+	ifaceImportPath := ""
+	if modDir != "" {
+		module, err := readModuleName(modDir)
+		if err == nil {
+			rel, _ := filepath.Rel(modDir, dir)
+			rel = filepath.ToSlash(rel)
+			ifaceImportPath = module + "/" + rel
+		}
+	}
+	if ifaceImportPath == "" {
+		return fmt.Errorf("cannot determine module path for interface package (go.mod not found)")
 	}
 
 	// Generate code
-	proxyStructName := cfg.InterfaceName + "Proxy"
+	proxyStructName := strings.ToLower(cfg.InterfaceName[:1]) + cfg.InterfaceName[1:] + "Proxy"
+
+	// Determine SDK package name
+	sdkPkgName := cfg.SdkPkgName
+	if sdkPkgName == "" {
+		sdkPkgName = "sdk"
+	}
 
 	var buf strings.Builder
 	buf.WriteString(fmt.Sprintf(`// Code generated by landc gen proxy. DO NOT EDIT.
-// Source: %s interface
+// Source: %s interface (%s)
 
 package %s
 
-`, cfg.InterfaceName, pkgName))
+import (
+	"context"
 
-	// Collect used imports: standard libs + aliases referenced in method types
-	standardImports := []string{"context"}
+	"%s"
+`, cfg.InterfaceName, ifaceImportPath, sdkPkgName, ifaceImportPath))
+
+	// Add used aliased imports (v1 types, etc.)
 	usedAliases := make(map[string]bool)
-
 	for _, m := range ifaceMethods {
 		checkTypeRefs(m.RespType, importAliases, usedAliases)
 		checkTypeRefs(m.ReqType, importAliases, usedAliases)
-	}
-
-	// Build import block
-	buf.WriteString("import (\n")
-	for _, std := range standardImports {
-		buf.WriteString(fmt.Sprintf("\t\"%s\"\n", std))
 	}
 	for alias := range usedAliases {
 		if path, ok := importAliases[alias]; ok {
@@ -244,19 +299,20 @@ package %s
 			}
 		}
 	}
+
 	buf.WriteString("\t\"github.com/LandcLi/landc-go/frame/pkg/di\"\n")
 	buf.WriteString(")\n\n")
 
 	// init() registering the proxy factory
 	buf.WriteString(fmt.Sprintf(`func init() {
-	di.RegisterProxyFactory("%s", func(client *di.ProxyClient) %s {
+	di.RegisterProxyFactory("%s", func(client *di.ProxyClient) %s.%s {
 		return &%s{client: client}
 	})
 }
 
-`, cfg.GatewayName, cfg.InterfaceName, proxyStructName))
+`, cfg.GatewayName, pkgName, cfg.InterfaceName, proxyStructName))
 
-	// Proxy struct
+	// Proxy struct (unexported)
 	buf.WriteString(fmt.Sprintf(`type %s struct {
 	client *di.ProxyClient
 }
@@ -265,7 +321,6 @@ package %s
 
 	// Methods
 	for _, m := range ifaceMethods {
-		// di.Call[Resp] returns *Resp, so if the interface returns *T, use T as type param
 		callRespType := m.RespType
 		if strings.HasPrefix(callRespType, "*") {
 			callRespType = callRespType[1:]
@@ -279,7 +334,9 @@ package %s
 
 	code := buf.String()
 
-	// Write file
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
+	}
 	if err := os.WriteFile(outputPath, []byte(code), 0644); err != nil {
 		return fmt.Errorf("write output file %s: %w", outputPath, err)
 	}

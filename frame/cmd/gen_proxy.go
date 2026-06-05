@@ -34,22 +34,28 @@ func NewGenProxyCommand() *cmd.Command {
 		}
 
 		dir := parser.GetOpt("dir")
+		outDir := parser.GetOpt("outdir")
 		output := parser.GetOpt("output")
+		sdkPkg := parser.GetOpt("sdk-package")
 
 		cfg := proxygen.Config{
 			InterfaceName: interfaceName,
 			GatewayName:   gatewayName,
 			Dir:           dir,
+			OutDir:        outDir,
 			Output:        output,
+			SdkPkgName:    sdkPkg,
 		}
 
 		return proxygen.Generate(cfg)
 	})
 
 	proxyCmd.AddOption("type", true)          // -type <interface name>
-	proxyCmd.AddOption("gateway-name", true)  // -gateway-name <gateway name>
-	proxyCmd.AddOption("dir", true)           // -dir <package directory>
-	proxyCmd.AddOption("output", true)        // -output <output file>
+	proxyCmd.AddOption("gateway-name", true)  // -gateway-name <gateway name (for DI)>
+	proxyCmd.AddOption("dir", true)           // -dir <interface package directory>
+	proxyCmd.AddOption("outdir", true)        // -outdir <output directory>
+	proxyCmd.AddOption("output", true)        // -output <output file (full path)>
+	proxyCmd.AddOption("sdk-package", true)   // -sdk-package <SDK package name (default: sdk)>
 
 	return proxyCmd
 }

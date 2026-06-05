@@ -76,6 +76,14 @@ func (g *Gateway[T]) Get() T {
 // Requires a proxy factory registered by generated code from 'landc gen proxy'.
 // After this, Get() returns the remote proxy and callers use the exact same interface methods.
 //
+// To share a client across multiple gateways (same backend service):
+//
+//	client := di.NewProxyClient("http://user-service:8081")
+//	user.UserGateway.ProvideRemote("http://user-service:8081", di.WithProxyClient(client))
+//	common.CommonGateway.ProvideRemote("http://user-service:8081", di.WithProxyClient(client))
+//
+// Without WithProxyClient, each ProvideRemote creates a new client.
+//
 // Remote mode (in main.go):
 //
 //	user.UserGateway.ProvideRemote("http://user-service:8081")
@@ -86,7 +94,21 @@ func (g *Gateway[T]) Get() T {
 //
 //	user.UserGateway.Provide(localImpl)
 func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
-	client := NewProxyClient(baseURL, opts...)
+	cfg := &remoteConfig{
+		baseURL: baseURL,
+		timeout: 30 * time.Second,
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	var client *ProxyClient
+	if cfg.existingProxy != nil {
+		// Use explicitly provided client (shared across gateways)
+		client = cfg.existingProxy
+	} else {
+		client = NewProxyClient(baseURL, opts...)
+	}
 
 	if factory, ok := proxyFactories.Load(g.name); ok {
 		fn := factory.(func(*ProxyClient) interface{})
@@ -215,10 +237,11 @@ type HeaderSetter interface {
 type RemoteOption func(*remoteConfig)
 
 type remoteConfig struct {
-	baseURL    string
-	timeout    time.Duration
-	httpClient *http.Client
-	headers    map[string]string
+	baseURL       string
+	timeout       time.Duration
+	httpClient    *http.Client
+	headers       map[string]string
+	existingProxy *ProxyClient // reuse existing client
 }
 
 // WithTimeout sets the HTTP client timeout.
@@ -234,6 +257,16 @@ func WithHTTPClient(client *http.Client) RemoteOption {
 // WithHeaders sets default headers for all requests.
 func WithHeaders(headers map[string]string) RemoteOption {
 	return func(c *remoteConfig) { c.headers = headers }
+}
+
+// WithProxyClient reuses an existing ProxyClient instead of creating a new one.
+// Use this to share a single HTTP client across multiple gateways.
+//
+//	client := di.NewProxyClient("http://user-service:8081")
+//	userGw.ProvideRemote("http://user-service:8081", di.WithProxyClient(client))
+//	commonGw.ProvideRemote("http://user-service:8081", di.WithProxyClient(client))
+func WithProxyClient(client *ProxyClient) RemoteOption {
+	return func(c *remoteConfig) { c.existingProxy = client }
 }
 
 // proxyDispatcher handles HTTP calls for the proxy.
