@@ -101,6 +101,7 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		"model",
 		"sdk",
 		"sqls",
+		"internal/cmd",
 		"internal/controller/hello",
 		"internal/service_impl/hello",
 		"internal/dao_impl/hello",
@@ -118,6 +119,7 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		fn   func(string, string) error
 	}{
 		{"main.go", func(p, m string) error { return createMainGo(p, moduleName) }},
+		{"internal/cmd/cmd.go", func(p, m string) error { return createCmdFile(p, moduleName) }},
 		{"go.mod", func(p, m string) error { return createGoMod(p, moduleName) }},
 		{".gitignore", func(p, _ string) error { return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0644) }},
 		{"config.yaml", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0644) }},
@@ -155,20 +157,40 @@ func createMainGo(projectPath, moduleName string) error {
 	content := fmt.Sprintf(`package main
 
 import (
-	"github.com/LandcLi/landc-go/frame/pkg/web"
-	"%s/api/hello"
+	"context"
+
 	_ "%s/internal"
+	"%s/internal/cmd"
 )
 
 func main() {
-	server := web.NewServer(nil)
-	server.RegisterHandler(hello.GetHelloController())
-	if err := server.Run(); err != nil {
-		panic(err)
-	}
+	cmd.Main.Run(context.Background())
 }
 `, moduleName, moduleName)
 	return os.WriteFile(filepath.Join(projectPath, "main.go"), []byte(content), 0644)
+}
+
+func createCmdFile(projectPath, moduleName string) error {
+	content := fmt.Sprintf(`package cmd
+
+import (
+	"context"
+
+	"github.com/LandcLi/landc-go/frame/pkg/cmd"
+	"github.com/LandcLi/landc-go/frame/pkg/web"
+	"%s/api/hello"
+)
+
+// Main is the main application command.
+var Main = cmd.NewCommand("main", "start HTTP server", func(ctx context.Context, parser *cmd.Parser) error {
+	server := web.NewServer(nil)
+	if err := server.RegisterHandler(hello.GetHelloController()); err != nil {
+		return err
+	}
+	return server.RunWithBootstrap()
+})
+`, moduleName)
+	return os.WriteFile(filepath.Join(projectPath, "internal/cmd/cmd.go"), []byte(content), 0644)
 }
 
 // ==================== go.mod ====================
@@ -520,7 +542,7 @@ curl -X POST http://localhost:8080/api/hello/say \
 
 `+"```"+`
 .
-├── main.go                    # Entry point
+├── main.go                    # Entry point: cmd.Main.Run(ctx)
 ├── config.yaml                # Server config
 ├── api/                       # Interface definitions
 │   ├── routers.go             # Route registration
@@ -535,6 +557,8 @@ curl -X POST http://localhost:8080/api/hello/say \
 ├── model/                     # Data models
 │   └── hello.go
 ├── internal/                  # Internal implementations
+│   ├── cmd/
+│   │   └── cmd.go             # Main command definition
 │   ├── impl.go                # Triggers init() of all subpackages
 │   ├── controller/hello/      # Controller layer
 │   ├── service_impl/hello/    # Service layer
@@ -549,7 +573,15 @@ curl -X POST http://localhost:8080/api/hello/say \
 ### Call Chain
 
 `+"```"+`
-Request → Gin Router → Controller → Service → DAO → Response
+cmd.Main.Run(ctx)
+  -> web.Server.RunWithBootstrap()
+    -> Bootstrap Init
+      -> config.InitGlobalConfigWithPath
+      -> db.InitGlobalDBWithDefault
+`+"```"+`
+
+`+"```"+`
+Request -> Gin Router -> Controller -> Service -> DAO -> Response
 `+"```"+`
 
 ### Dependency Injection
@@ -568,7 +600,7 @@ Generate SDK code and switch to remote mode:
 # Generate SDK proxy
 landc gen proxy --type=HelloController --gateway-name=hello.controller
 
-# In main.go: replace local with remote
+# In internal/cmd/cmd.go: replace local with remote
 hello.HelloGateway.ProvideRemote("http://hello-service:8080")
 `+"```"+`
 

@@ -76,3 +76,9 @@ require (
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
+
+replace (
+	github.com/LandcLi/landc-go/api v0.1.0 => ../api
+	github.com/LandcLi/landc-go/log v0.1.0 => ../log
+	github.com/LandcLi/landc-go/tools v0.1.0 => ../tools
+)
