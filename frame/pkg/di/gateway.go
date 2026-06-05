@@ -24,14 +24,14 @@ type RouteInfo struct {
 type Routes map[string]RouteInfo
 
 // Gateway wraps a controller interface and provides:
-//   - Automatic HTTP proxy generation (client side)
-//   - DI integration with Provide/Override/Require
-//   - Route auto-discovery from interface method signatures
+//   - Automatic HTTP proxy calls via Call/CallVoid (client side)
+//   - DI integration with Provide/Override/Require for local mode
 //
 // Type parameter T must be an interface type.
 // Routes are automatically parsed from Meta tags in request structs.
 type Gateway[T any] struct {
-	name string
+	name        string
+	proxyClient *ProxyClient
 }
 
 // NewGateway creates a new service gateway.
@@ -55,27 +55,31 @@ func (g *Gateway[T]) Override(impl T) {
 	Override[T](g.name, impl)
 }
 
-// Get retrieves the registered implementation.
+// Get retrieves the registered implementation. Panics if not registered.
 func (g *Gateway[T]) Get() T {
 	return Require[T](g.name)
 }
 
-// ProvideRemote creates an HTTP proxy client and registers it as the implementation.
-// Call this when the service is deployed remotely.
-// Routes are automatically parsed from the interface T.
+// ProvideRemote creates an HTTP proxy client for remote calls.
+// After calling this, use GetClient() + di.Call to make remote method calls.
+// Routes are automatically parsed from request structs' Meta tags.
 //
-//	gw.ProvideRemote("http://user-service:8081")
+// Remote proxy (in main.go):
+//
+//	userGw.ProvideRemote("http://user-service:8081")
+//	client := userGw.GetClient()
+//	resp, err := di.Call[LoginResponse](client, ctx, "Login", req)
+//
+// Local proxy (in init()):
+//
+//	userGw.Provide(localImpl)
 func (g *Gateway[T]) ProvideRemote(baseURL string, opts ...RemoteOption) {
-	cfg := &remoteConfig{
-		baseURL: baseURL,
-		timeout: 30 * time.Second,
-	}
-	for _, opt := range opts {
-		opt(cfg)
-	}
+	g.proxyClient = NewProxyClient(baseURL, opts...)
+}
 
-	proxy := newProxy[T](cfg)
-	Override[T](g.name, proxy)
+// GetClient returns the underlying ProxyClient. Only works after ProvideRemote.
+func (g *Gateway[T]) GetClient() *ProxyClient {
+	return g.proxyClient
 }
 
 // parseRoutesFromInterface automatically discovers routes from interface T.
@@ -205,26 +209,6 @@ func WithHeaders(headers map[string]string) RemoteOption {
 	return func(c *remoteConfig) { c.headers = headers }
 }
 
-// newProxy creates a dynamic proxy that implements interface T by making HTTP calls.
-// It uses reflect.MakeFunc to generate method implementations at runtime.
-func newProxy[T any](cfg *remoteConfig) T {
-	httpClient := cfg.httpClient
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: cfg.timeout}
-	}
-
-	var zero T
-	ifaceType := reflect.TypeOf(&zero).Elem()
-
-	proxy := &proxyDispatcher{
-		baseURL:    cfg.baseURL,
-		httpClient: httpClient,
-		headers:    cfg.headers,
-	}
-
-	return buildProxy[T](proxy, ifaceType)
-}
-
 // proxyDispatcher handles HTTP calls for the proxy.
 type proxyDispatcher struct {
 	baseURL    string
@@ -312,22 +296,6 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req inter
 	}
 
 	return nil
-}
-
-// buildProxy creates a concrete implementation of interface T using reflect.
-func buildProxy[T any](dispatcher *proxyDispatcher, ifaceType reflect.Type) T {
-	client := &ProxyClient{dispatcher: dispatcher}
-
-	var result interface{} = client
-	if v, ok := result.(T); ok {
-		return v
-	}
-
-	panic(fmt.Sprintf(
-		"cannot create proxy for %v: interface methods must match ProxyClient pattern. "+
-			"Use 'landc gen proxy' for code generation, or implement the interface manually with ProxyClient.Call()",
-		ifaceType,
-	))
 }
 
 // ProxyClient is a generic HTTP client that can call remote services.
