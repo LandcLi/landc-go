@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
 	"github.com/gin-gonic/gin"
 )
@@ -71,7 +73,7 @@ func (c *GroupController) GetItem(req *GroupRequest) (*GroupResponse, error) {
 
 func (c *ContextController) TestContext(ctx *LandcContext, req *ContextRequest) (*ContextResponse, error) {
 	customHeader := ctx.GetHeader("X-Custom-Header")
-	ctx.SetHeader("X-Response-Header", "response-value")
+	ctx.Header("X-Response-Header", "response-value")
 
 	return &ContextResponse{
 		ID:       req.ID,
@@ -241,6 +243,46 @@ func TestServerConfig(t *testing.T) {
 		if server.config.Addr != ":9090" {
 			t.Errorf("Expected custom addr :9090, got %s", server.config.Addr)
 		}
+	})
+}
+
+func TestNew(t *testing.T) {
+	t.Run("New returns valid server", func(t *testing.T) {
+		server := New()
+		if server == nil {
+			t.Fatal("Expected non-nil server")
+		}
+		if server.config.Addr != ":8080" {
+			t.Errorf("Expected default addr :8080, got %s", server.config.Addr)
+		}
+		if server.config.ReadTimeout != 60*time.Second {
+			t.Errorf("Expected default ReadTimeout 60s, got %v", server.config.ReadTimeout)
+		}
+	})
+
+	t.Run("New reads from global config", func(t *testing.T) {
+		// 设置全局配置
+		cfg := config.DefaultConfig()
+		cfg.Server.Addr = "0.0.0.0"
+		cfg.Server.Port = 3000
+		cfg.Server.ReadTimeout = 30
+		cfg.Server.WriteTimeout = 15
+		config.InitGlobalConfigWithConfig(cfg)
+
+		server := New()
+
+		if server.config.Addr != "0.0.0.0:3000" {
+			t.Errorf("Expected addr 0.0.0.0:3000, got %s", server.config.Addr)
+		}
+		if server.config.ReadTimeout != 30*time.Second {
+			t.Errorf("Expected ReadTimeout 30s, got %v", server.config.ReadTimeout)
+		}
+		if server.config.WriteTimeout != 15*time.Second {
+			t.Errorf("Expected WriteTimeout 15s, got %v", server.config.WriteTimeout)
+		}
+
+		// 清理，避免影响其他测试
+		config.InitGlobalConfigWithConfig(config.DefaultConfig())
 	})
 }
 

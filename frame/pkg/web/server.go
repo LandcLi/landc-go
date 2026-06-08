@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/log/facade"
 	"github.com/gin-gonic/gin"
 )
@@ -32,26 +33,44 @@ type (
 	}
 )
 
-func NewServer(config *ServerConfig) *Server {
-	if config == nil {
-		config = &ServerConfig{}
+// New 使用默认配置创建 Server，自动读取全局配置（如有），否则使用内置默认值。
+func New() *Server {
+	return NewServer(nil)
+}
+
+// NewServer 使用指定配置创建 Server。
+// 传 nil 时自动从全局配置读取（config.InitGlobalConfigWithPath），
+// 未加载全局配置时使用内置默认值。
+func NewServer(cfg *ServerConfig) *Server {
+	if cfg == nil {
+		// 自动从全局配置读取
+		if globalCfg := config.GetConfig(); globalCfg != nil {
+			cfg = &ServerConfig{
+				Addr:         globalCfg.GetServerAddr(),
+				ReadTimeout:  time.Duration(globalCfg.Server.ReadTimeout) * time.Second,
+				WriteTimeout: time.Duration(globalCfg.Server.WriteTimeout) * time.Second,
+			}
+		}
 	}
-	if config.Addr == "" {
-		config.Addr = ":8080"
+	if cfg == nil {
+		cfg = &ServerConfig{}
 	}
-	if config.ReadTimeout == 0 {
-		config.ReadTimeout = 60 * time.Second
+	if cfg.Addr == "" {
+		cfg.Addr = ":8080"
 	}
-	if config.WriteTimeout == 0 {
-		config.WriteTimeout = 60 * time.Second
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = 60 * time.Second
 	}
-	if config.ShutdownTimeout == 0 {
-		config.ShutdownTimeout = 10 * time.Second
+	if cfg.WriteTimeout == 0 {
+		cfg.WriteTimeout = 60 * time.Second
+	}
+	if cfg.ShutdownTimeout == 0 {
+		cfg.ShutdownTimeout = 10 * time.Second
 	}
 
 	return &Server{
 		engine: gin.Default(),
-		config: config,
+		config: cfg,
 	}
 }
 

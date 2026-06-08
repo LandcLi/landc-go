@@ -2,6 +2,8 @@ module github.com/LandcLi/landc-go/frame
 
 go 1.24.0
 
+toolchain go1.24.9
+
 require (
 	github.com/LandcLi/landc-go/api v0.1.0
 	github.com/LandcLi/landc-go/log v0.1.0
@@ -19,6 +21,9 @@ require (
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
+)
+
+require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
