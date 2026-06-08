@@ -11,9 +11,14 @@ import (
 
 // Claims JWT 声明
 type Claims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role,omitempty"`
+	UserID            uint   `json:"user_id"`
+	Username          string `json:"username"`
+	Role              string `json:"role,omitempty"`
+	ClientID          string `json:"client_id,omitempty"`
+	Scope             string `json:"scope,omitempty"`
+	IP                string `json:"ip,omitempty"`
+	DeviceFingerprint string `json:"device_fingerprint,omitempty"`
+	TokenType         string `json:"token_type,omitempty"` // access, refresh, temp
 	jwt.RegisteredClaims
 }
 
@@ -24,43 +29,66 @@ type JWTConfig struct {
 	Issuer     string        `json:"issuer" yaml:"issuer"`
 }
 
+// GenerateTokenOption 生成 Token 的可选参数
+type GenerateTokenOption struct {
+	Role              string
+	ClientID          string
+	Scope             string
+	IP                string
+	DeviceFingerprint string
+	TokenType         string
+	ExpireTime        time.Duration // 为空时使用 JWTConfig 的默认值
+}
+
 var (
 	globalJWTConfig *JWTConfig
 	jwtMu           sync.RWMutex
 )
 
-// InitJWT 初始化 JWT 配置
 func InitJWT(cfg *JWTConfig) {
 	jwtMu.Lock()
 	defer jwtMu.Unlock()
 	globalJWTConfig = cfg
 }
 
-// GetJWTConfig 获取 JWT 配置
 func GetJWTConfig() *JWTConfig {
 	jwtMu.RLock()
 	defer jwtMu.RUnlock()
 	return globalJWTConfig
 }
 
-// GenerateToken 生成 JWT Token
+// GenerateToken 生成 JWT Token（简化版）
 func GenerateToken(userID uint, username string, role ...string) (string, error) {
+	opt := GenerateTokenOption{}
+	if len(role) > 0 {
+		opt.Role = role[0]
+	}
+	return GenerateTokenWithOpts(userID, username, opt)
+}
+
+// GenerateTokenWithOpts 生成 JWT Token（完整版，支持自定义 claims）
+func GenerateTokenWithOpts(userID uint, username string, opt GenerateTokenOption) (string, error) {
 	cfg := GetJWTConfig()
 	if cfg == nil {
 		return "", errors.New("JWT config not initialized")
 	}
 
-	userRole := ""
-	if len(role) > 0 {
-		userRole = role[0]
+	expire := opt.ExpireTime
+	if expire == 0 {
+		expire = cfg.ExpireTime
 	}
 
 	claims := Claims{
-		UserID:   userID,
-		Username: username,
-		Role:     userRole,
+		UserID:            userID,
+		Username:          username,
+		Role:              opt.Role,
+		ClientID:          opt.ClientID,
+		Scope:             opt.Scope,
+		IP:                opt.IP,
+		DeviceFingerprint: opt.DeviceFingerprint,
+		TokenType:         opt.TokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(cfg.ExpireTime)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expire)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    cfg.Issuer,
@@ -96,11 +124,30 @@ func ParseToken(tokenString string) (*Claims, error) {
 	return nil, errors.New("invalid token")
 }
 
-// RefreshToken 刷新 Token
-func RefreshToken(tokenString string) (string, error) {
+// RefreshToken 刷新 Token（保留原有 optional claims）
+func RefreshToken(tokenString string, opts ...GenerateTokenOption) (string, error) {
 	claims, err := ParseToken(tokenString)
 	if err != nil {
 		return "", err
 	}
-	return GenerateToken(claims.UserID, claims.Username, claims.Role)
+
+	opt := GenerateTokenOption{
+		Role:              claims.Role,
+		ClientID:          claims.ClientID,
+		Scope:             claims.Scope,
+		IP:                claims.IP,
+		DeviceFingerprint: claims.DeviceFingerprint,
+		TokenType:         claims.TokenType,
+	}
+	if len(opts) > 0 {
+		if opts[0].Role != "" {
+			opt.Role = opts[0].Role
+		}
+		if opts[0].ClientID != "" {
+			opt.ClientID = opts[0].ClientID
+		}
+		// merge other overrides as needed
+	}
+
+	return GenerateTokenWithOpts(claims.UserID, claims.Username, opt)
 }

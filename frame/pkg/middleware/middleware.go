@@ -153,6 +153,11 @@ func Auth() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
+		c.Set("client_id", claims.ClientID)
+		c.Set("scope", claims.Scope)
+		c.Set("ip", claims.IP)
+		c.Set("device_fingerprint", claims.DeviceFingerprint)
+		c.Set("token_type", claims.TokenType)
 		c.Next()
 	}
 }

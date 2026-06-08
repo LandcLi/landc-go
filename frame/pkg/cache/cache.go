@@ -3,11 +3,13 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/LandcLi/landc-go/frame/pkg/config"
+	toolscache "github.com/LandcLi/landc-go/tools/cache"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -64,13 +66,40 @@ func InitGlobalCacheWithConfig(cfg *config.RedisConfig) error {
 	return nil
 }
 
-// InitGlobalCacheWithDefault 使用默认配置初始化
+// InitGlobalCacheWithLocal 使用本地内存缓存初始化（基于 tools/cache LRU 实现）
+func InitGlobalCacheWithLocal(capacity int) {
+	cacheMu.Lock()
+	defer cacheMu.Unlock()
+
+	if globalCache != nil {
+		return
+	}
+
+	gc := toolscache.NewGlobalCacheWithCapacity(capacity)
+	gc.StartCleanup(10 * time.Minute)
+	globalCache = &LocalCache{cache: gc}
+}
+
+// InitGlobalCacheWithDefault 使用默认配置初始化：
+// 如果有 Redis 配置且可连接，使用 Redis；否则使用本地内存缓存（弱依赖模式）
 func InitGlobalCacheWithDefault() error {
 	cfg := config.GetConfig()
 	if cfg == nil {
-		return fmt.Errorf("config not initialized")
+		InitGlobalCacheWithLocal(10000)
+		return nil
 	}
-	return InitGlobalCacheWithConfig(&cfg.Redis)
+
+	// 尝试 Redis
+	if cfg.Redis.Addr != "" && cfg.Redis.Addr != "localhost:6379" {
+		err := InitGlobalCacheWithConfig(&cfg.Redis)
+		if err == nil {
+			return nil
+		}
+	}
+
+	// Redis 不可用或未配置，使用本地缓存
+	InitGlobalCacheWithLocal(10000)
+	return nil
 }
 
 // GetCache 获取缓存实例
@@ -87,20 +116,27 @@ func GetRedis() *redis.Client {
 	return globalRedis
 }
 
-// Close 关闭 Redis 连接
+// Close 关闭缓存连接
 func Close() error {
 	cacheMu.Lock()
 	defer cacheMu.Unlock()
 
-	if globalRedis == nil {
-		return nil
+	if globalRedis != nil {
+		err := globalRedis.Close()
+		globalRedis = nil
+		globalCache = nil
+		return err
 	}
 
-	err := globalRedis.Close()
-	globalRedis = nil
+	// 本地缓存关闭（清理 goroutine）
+	if lc, ok := globalCache.(*LocalCache); ok {
+		lc.cache.StopCleanup()
+	}
 	globalCache = nil
-	return err
+	return nil
 }
+
+// ==================== RedisCache ====================
 
 // RedisCache Redis 缓存实现
 type RedisCache struct {
@@ -145,4 +181,73 @@ func (c *RedisCache) SetObject(ctx context.Context, key string, value interface{
 		return err
 	}
 	return c.client.Set(ctx, key, data, expiration).Err()
+}
+
+// ==================== LocalCache ====================
+
+// LocalCache 基于 tools/cache LRU 实现的本地缓存（与 Cache 接口兼容）
+type LocalCache struct {
+	cache *toolscache.GlobalCache
+}
+
+func (c *LocalCache) Get(ctx context.Context, key string) (string, error) {
+	val, found := c.cache.Get(key)
+	if !found {
+		return "", errors.New("key not found")
+	}
+	switch v := val.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		data, err := json.Marshal(val)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
+}
+
+func (c *LocalCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	c.cache.SetWithExpiration(key, value, expiration)
+	return nil
+}
+
+func (c *LocalCache) Delete(ctx context.Context, keys ...string) error {
+	for _, key := range keys {
+		c.cache.Delete(key)
+	}
+	return nil
+}
+
+func (c *LocalCache) Exists(ctx context.Context, key string) (bool, error) {
+	_, found := c.cache.Get(key)
+	return found, nil
+}
+
+func (c *LocalCache) Expire(ctx context.Context, key string, expiration time.Duration) error {
+	val, found := c.cache.Get(key)
+	if !found {
+		return errors.New("key not found")
+	}
+	c.cache.SetWithExpiration(key, val, expiration)
+	return nil
+}
+
+func (c *LocalCache) GetObject(ctx context.Context, key string, dest interface{}) error {
+	val, found := c.cache.Get(key)
+	if !found {
+		return errors.New("key not found")
+	}
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, dest)
+}
+
+func (c *LocalCache) SetObject(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	c.cache.SetWithExpiration(key, value, expiration)
+	return nil
 }

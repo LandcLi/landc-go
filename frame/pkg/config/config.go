@@ -16,10 +16,17 @@ type (
 		Database DatabaseConfig         `json:"database" yaml:"database"`
 		Redis    RedisConfig            `json:"redis" yaml:"redis"`
 		Log      LogConfig              `json:"log" yaml:"log"`
+		JWT      JWTConfig              `json:"jwt" yaml:"jwt"`
 		// Other 存储用户自定义配置项（非框架标准字段）。
-		// 从 JSON/YAML 加载时，所有不在 server/database/redis/log 下的顶级键
+		// 从 JSON/YAML 加载时，所有不在 server/database/redis/log/jwt 下的顶级键
 		// 都会被自动捕获到此处。序列化时也会合并回顶层输出。
 		Other    map[string]interface{} `json:"-" yaml:"-"`
+	}
+
+	JWTConfig struct {
+		Secret     string `json:"secret" yaml:"secret"`
+		ExpireTime string `json:"expire_time" yaml:"expire_time"`
+		Issuer     string `json:"issuer" yaml:"issuer"`
 	}
 
 	ServerConfig struct {
@@ -181,6 +188,11 @@ func DefaultConfig() *Config {
 			MaxBackups: 3,
 			MaxAge:     28,
 		},
+		JWT: JWTConfig{
+			Secret:     "change-me",
+			ExpireTime: "2h",
+			Issuer:     "app",
+		},
 		Other: make(map[string]interface{}),
 	}
 }
@@ -245,6 +257,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	delete(raw, "database")
 	delete(raw, "redis")
 	delete(raw, "log")
+	delete(raw, "jwt")
 
 	// 剩余字段存入 Other
 	c.Other = make(map[string]interface{})
@@ -291,7 +304,7 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 
 	// 第二步：从 YAML 节点中提取未知顶级字段
 	knownKeys := map[string]bool{
-		"server": true, "database": true, "redis": true, "log": true,
+		"server": true, "database": true, "redis": true, "log": true, "jwt": true,
 	}
 
 	if value.Kind == yaml.MappingNode {

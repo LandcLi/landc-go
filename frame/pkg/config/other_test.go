@@ -34,24 +34,17 @@ func TestOther_JSONLoading(t *testing.T) {
 		t.Errorf("Expected port 8080, got %d", config.Server.Port)
 	}
 
-	// Other should capture custom keys
-	if len(config.Other) != 3 {
-		t.Errorf("Expected 3 custom keys in Other, got %d", len(config.Other))
+	// Other should capture custom keys (jwt is now a known field, not in Other)
+	if len(config.Other) != 2 {
+		t.Errorf("Expected 2 custom keys in Other, got %d", len(config.Other))
 	}
 
-	v, ok := config.GetOther("jwt")
-	if !ok {
-		t.Error("Expected 'jwt' key in Other")
-	}
-	jwtMap, ok := v.(map[string]interface{})
-	if !ok {
-		t.Errorf("Expected 'jwt' to be map[string]interface{}, got %T", v)
-	}
-	if jwtMap["secret"] != "my-secret" {
-		t.Errorf("Expected jwt.secret='my-secret', got %v", jwtMap["secret"])
+	// JWT should be parsed into Config.JWT directly
+	if config.JWT.Secret != "my-secret" {
+		t.Errorf("Expected JWT secret 'my-secret', got '%s'", config.JWT.Secret)
 	}
 
-	v, ok = config.GetOther("app_name")
+	v, ok := config.GetOther("app_name")
 	if !ok {
 		t.Error("Expected 'app_name' key in Other")
 	}

@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/LandcLi/landc-go/frame/pkg/auth"
+	"github.com/LandcLi/landc-go/frame/pkg/cache"
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/db"
 	"github.com/LandcLi/landc-go/frame/pkg/trace"
@@ -139,6 +142,23 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 	// This allows CLI tools and non-DB services to use Bootstrap without DB.
 	if err := db.InitGlobalDBWithDefault(); err != nil {
 		return nil
+	}
+
+	// Init cache. Redis 可用时用 Redis，不可用时 fallback 到本地内存缓存。
+	// 基于 tools/cache LRU 实现，确保离开 Redis 系统仍然可用。
+	_ = cache.InitGlobalCacheWithDefault()
+
+	// Auto-init JWT from config (optional).
+	// jwt:` section in config.yaml is parsed into Config.JWT directly.
+	if cfg := config.GetConfig(); cfg != nil && cfg.JWT.Secret != "" && cfg.JWT.ExpireTime != "" {
+		expire, err := time.ParseDuration(cfg.JWT.ExpireTime)
+		if err == nil {
+			auth.InitJWT(&auth.JWTConfig{
+				Secret:     cfg.JWT.Secret,
+				ExpireTime: expire,
+				Issuer:     cfg.JWT.Issuer,
+			})
+		}
 	}
 
 	return nil
