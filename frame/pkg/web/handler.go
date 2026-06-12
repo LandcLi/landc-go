@@ -15,9 +15,11 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 		defer func() {
 			if r := recover(); r != nil {
 				stack := string(debug.Stack())
+				// 仅记录日志，不返回堆栈信息到客户端（防止信息泄露）
+				fmt.Printf("panic recovered in handler: %v\n%s", r, stack)
 				c.JSON(500, gin.H{
-					"error": fmt.Sprintf("internal server error: %v", r),
-					"stack": stack,
+					"code":    50000,
+					"message": "internal server error",
 				})
 				c.Abort()
 			}
@@ -50,7 +52,10 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 			paramType := methodType.In(paramIndex)
 			params, err := parseParamsFromContext(c, paramType)
 			if err != nil {
-				c.JSON(400, gin.H{"error": err.Error()})
+				c.JSON(400, gin.H{
+					"code":    40000,
+					"message": err.Error(),
+				})
 				return
 			}
 			args = append(args, params...)
@@ -62,22 +67,36 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 			lastResult := results[len(results)-1]
 			if lastResult.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 				if err, _ := lastResult.Interface().(error); err != nil {
-					c.JSON(500, gin.H{"error": err.Error()})
+					c.JSON(500, gin.H{
+						"code":    50000,
+						"message": err.Error(),
+					})
 					return
 				}
 			}
 
 			if len(results) > 1 {
 				data := results[0].Interface()
-				c.JSON(200, data)
+				c.JSON(200, gin.H{
+					"code":    10000,
+					"message": "success",
+					"data":    data,
+				})
 				return
 			} else if len(results) == 1 && !lastResult.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 				data := results[0].Interface()
-				c.JSON(200, data)
+				c.JSON(200, gin.H{
+					"code":    10000,
+					"message": "success",
+					"data":    data,
+				})
 				return
 			}
 		}
 
-		c.JSON(200, gin.H{"success": true})
+		c.JSON(200, gin.H{
+			"code":    10000,
+			"message": "success",
+		})
 	}
 }

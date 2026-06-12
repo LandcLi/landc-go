@@ -9,9 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	apihealth "github.com/LandcLi/landc-go/api/health"
+	ginmw "github.com/LandcLi/landc-go/api/middleware/gin"
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/health"
-	"github.com/LandcLi/landc-go/frame/pkg/middleware"
 	"github.com/LandcLi/landc-go/log/facade"
 	"github.com/gin-gonic/gin"
 )
@@ -92,7 +93,7 @@ func (s *Server) registerBuiltin() {
 	if globalCfg.Server.RequestTimeout > 0 {
 		facade.Info("request timeout middleware enabled",
 			facade.Field{Key: "timeout_seconds", Value: globalCfg.Server.RequestTimeout})
-		s.engine.Use(middleware.Timeout(
+		s.engine.Use(ginmw.Timeout(
 			time.Duration(globalCfg.Server.RequestTimeout) * time.Second,
 		))
 	}
@@ -145,12 +146,12 @@ func (s *Server) registerDefaultRoutes(hc config.HealthCheckConfig) {
 // handleReadiness 处理就绪性检查请求，执行所有注册的 Checker。
 func (s *Server) handleReadiness() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		checkers := health.GlobalCheckers()
-		results := make([]health.CheckResult, 0, len(checkers))
+		checkers := apihealth.All()
+		results := make([]apihealth.CheckResult, 0, len(checkers))
 		overallStatus := "ok"
 
 		for _, checker := range checkers {
-			result := health.CheckResult{Name: checker.Name(), Status: "up"}
+			result := apihealth.CheckResult{Name: checker.Name(), Status: "up"}
 			if err := checker.Check(c.Request.Context()); err != nil {
 				result.Status = "down"
 				result.Error = err.Error()
@@ -164,7 +165,7 @@ func (s *Server) handleReadiness() gin.HandlerFunc {
 			statusCode = http.StatusServiceUnavailable
 		}
 
-		c.JSON(statusCode, health.CheckResponse{
+		c.JSON(statusCode, apihealth.CheckResponse{
 			Status: overallStatus,
 			Checks: results,
 		})

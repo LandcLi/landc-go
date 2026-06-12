@@ -1,25 +1,58 @@
+// Package health 提供框架内置的 DB/Redis 健康检查器。
+//
+// 本包是 api/health 框架特有实现的补充，依赖 frame/pkg/db 和 frame/pkg/cache。
+// 通用的 Checker 接口、类型、注册表在 api/health 包中。
 package health
 
-import "context"
+import (
+	"context"
+	"time"
 
-// Checker 健康检查器接口。
-// 框架内置 DB 和 Redis 检查器；用户可自定义并注册自己的检查器。
-type Checker interface {
-	// Name 返回检查器名称，用于日志和响应标识。
-	Name() string
-	// Check 执行健康检查，返回 nil 表示正常，返回 error 表示异常。
-	Check(ctx context.Context) error
+	apihealth "github.com/LandcLi/landc-go/api/health"
+	"github.com/LandcLi/landc-go/frame/pkg/cache"
+	"github.com/LandcLi/landc-go/frame/pkg/db"
+)
+
+// RegisterDefaultCheckers 注册框架内置的 DB 和 Redis 健康检查器。
+func RegisterDefaultCheckers(dbEnabled, redisEnabled bool) {
+	if dbEnabled {
+		apihealth.Register(&dbChecker{})
+	}
+	if redisEnabled {
+		apihealth.Register(&redisChecker{})
+	}
 }
 
-// CheckResult 单次检查结果。
-type CheckResult struct {
-	Name   string `json:"name"`
-	Status string `json:"status"` // "up" | "down"
-	Error  string `json:"error,omitempty"`
+// dbChecker 数据库健康检查器。
+type dbChecker struct{}
+
+func (c *dbChecker) Name() string { return "database" }
+
+func (c *dbChecker) Check(ctx context.Context) error {
+	gormDB := db.GetDB()
+	if gormDB == nil {
+		return nil
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(pingCtx)
 }
 
-// CheckResponse 聚合健康检查响应。
-type CheckResponse struct {
-	Status string        `json:"status"` // "ok" | "degraded"
-	Checks []CheckResult `json:"checks"`
+// redisChecker Redis 健康检查器。
+type redisChecker struct{}
+
+func (c *redisChecker) Name() string { return "redis" }
+
+func (c *redisChecker) Check(ctx context.Context) error {
+	redisClient := cache.GetRedis()
+	if redisClient == nil {
+		return nil
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	return redisClient.Ping(pingCtx).Err()
 }

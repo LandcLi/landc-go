@@ -1,30 +1,16 @@
 package middleware
 
 import (
-	"context"
 	"time"
 
+	ginmw "github.com/LandcLi/landc-go/api/middleware/gin"
 	"github.com/gin-gonic/gin"
 )
 
 // Timeout 为每个请求设置超时上下文。
-// 超时后请求的 Context 会 Done，由业务代码通过 ctx.Err() 或 ctx.Done() 感知。
-// 如果超时且尚未写入响应，自动返回 504。
+// 实际实现在 api/middleware/gin，此处为向后兼容的 re-export。
+//
+//	engine.Use(middleware.Timeout(30 * time.Second))
 func Timeout(timeout time.Duration) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
-		defer cancel()
-
-		c.Request = c.Request.WithContext(ctx)
-		c.Next()
-
-		if ctx.Err() == context.DeadlineExceeded {
-			if !c.Writer.Written() {
-				c.AbortWithStatusJSON(504, gin.H{
-					"code":    504,
-					"message": "request timeout",
-				})
-			}
-		}
-	}
+	return ginmw.Timeout(timeout)
 }
