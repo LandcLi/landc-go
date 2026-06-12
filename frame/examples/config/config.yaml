@@ -4,6 +4,13 @@ server:
   read_timeout: 60
   write_timeout: 60
   use_default_routes: true
+  health_check:
+    enabled: true
+    liveness_path: "/health"
+    readiness_path: "/ready"
+    database_check: true
+    redis_check: true
+  request_timeout: 30
 
 database:
   driver: "mysql"

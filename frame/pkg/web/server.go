@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/LandcLi/landc-go/frame/pkg/config"
+	"github.com/LandcLi/landc-go/frame/pkg/health"
+	"github.com/LandcLi/landc-go/frame/pkg/middleware"
 	"github.com/LandcLi/landc-go/log/facade"
 	"github.com/gin-gonic/gin"
 )
@@ -21,11 +23,11 @@ type (
 	}
 
 	ServerConfig struct {
-		Addr             string
-		ReadTimeout      time.Duration
-		WriteTimeout     time.Duration
-		ShutdownTimeout  time.Duration
-		Handler          http.Handler
+		Addr            string
+		ReadTimeout     time.Duration
+		WriteTimeout    time.Duration
+		ShutdownTimeout time.Duration
+		Handler         http.Handler
 	}
 
 	RouterGroup struct {
@@ -68,9 +70,104 @@ func NewServer(cfg *ServerConfig) *Server {
 		cfg.ShutdownTimeout = 10 * time.Second
 	}
 
-	return &Server{
+	s := &Server{
 		engine: gin.Default(),
 		config: cfg,
+	}
+
+	// 自动注册框架级中间件和默认路由（基于全局配置）
+	s.registerBuiltin()
+
+	return s
+}
+
+// registerBuiltin 自动注册框架级中间件（请求超时等）和默认路由（健康检查等）。
+func (s *Server) registerBuiltin() {
+	globalCfg := config.GetConfig()
+	if globalCfg == nil {
+		return
+	}
+
+	// 注册请求超时中间件
+	if globalCfg.Server.RequestTimeout > 0 {
+		facade.Info("request timeout middleware enabled",
+			facade.Field{Key: "timeout_seconds", Value: globalCfg.Server.RequestTimeout})
+		s.engine.Use(middleware.Timeout(
+			time.Duration(globalCfg.Server.RequestTimeout) * time.Second,
+		))
+	}
+
+	// 注册默认路由（健康检查）
+	if globalCfg.Server.UseDefaultRoutes {
+		s.registerDefaultRoutes(globalCfg.Server.HealthCheck)
+	}
+}
+
+// registerDefaultRoutes 注册框架默认路由（健康检查端点）。
+func (s *Server) registerDefaultRoutes(hc config.HealthCheckConfig) {
+	if !hc.Enabled {
+		return
+	}
+
+	// 注册内置检查器（DB、Redis）
+	health.RegisterDefaultCheckers(hc.DatabaseCheck, hc.RedisCheck)
+
+	// 存活性检查 — 轻量级，只返回 200
+	livenessPath := hc.LivenessPath
+	if livenessPath == "" {
+		livenessPath = "/health"
+	}
+	s.engine.GET(livenessPath, func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+	facade.Info("liveness check registered",
+		facade.Field{Key: "path", Value: livenessPath})
+
+	// 启动性检查 — 可选，由 StartupPath 控制
+	if hc.StartupPath != "" {
+		s.engine.GET(hc.StartupPath, func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "serving"})
+		})
+		facade.Info("startup check registered",
+			facade.Field{Key: "path", Value: hc.StartupPath})
+	}
+
+	// 就绪性检查 — 检查所有注册的 Checker
+	readinessPath := hc.ReadinessPath
+	if readinessPath == "" {
+		readinessPath = "/ready"
+	}
+	s.engine.GET(readinessPath, s.handleReadiness())
+	facade.Info("readiness check registered",
+		facade.Field{Key: "path", Value: readinessPath})
+}
+
+// handleReadiness 处理就绪性检查请求，执行所有注册的 Checker。
+func (s *Server) handleReadiness() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		checkers := health.GlobalCheckers()
+		results := make([]health.CheckResult, 0, len(checkers))
+		overallStatus := "ok"
+
+		for _, checker := range checkers {
+			result := health.CheckResult{Name: checker.Name(), Status: "up"}
+			if err := checker.Check(c.Request.Context()); err != nil {
+				result.Status = "down"
+				result.Error = err.Error()
+				overallStatus = "degraded"
+			}
+			results = append(results, result)
+		}
+
+		statusCode := http.StatusOK
+		if overallStatus == "degraded" {
+			statusCode = http.StatusServiceUnavailable
+		}
+
+		c.JSON(statusCode, health.CheckResponse{
+			Status: overallStatus,
+			Checks: results,
+		})
 	}
 }
 

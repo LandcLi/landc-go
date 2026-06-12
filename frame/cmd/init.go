@@ -120,16 +120,26 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		{"main.go", func(p, m string) error { return createMainGo(p, moduleName) }},
 		{"internal/cmd/cmd.go", func(p, m string) error { return createCmdFile(p, moduleName) }},
 		{"go.mod", func(p, m string) error { return createGoMod(p, moduleName) }},
-		{".gitignore", func(p, _ string) error { return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0644) }},
-		{"config.yaml", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0644) }},
-		{"sqls/init.sql", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "sqls", "init.sql"), []byte(sqlInitContent), 0644) }},
+		{".gitignore", func(p, _ string) error {
+			return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0644)
+		}},
+		{"config.yaml", func(p, _ string) error {
+			return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0644)
+		}},
+		{"sqls/init.sql", func(p, _ string) error {
+			return os.WriteFile(filepath.Join(p, "sqls", "init.sql"), []byte(sqlInitContent), 0644)
+		}},
 
 		// routes are registered via meta.Meta tags, no routers.go needed
 		{"api/hello/hello.go", func(p, m string) error { return createHelloApi(p, moduleName) }},
-		{"api/hello/v1/say_hello.go", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "api/hello/v1", "say_hello.go"), []byte(sayHelloContent), 0644) }},
+		{"api/hello/v1/say_hello.go", func(p, _ string) error {
+			return os.WriteFile(filepath.Join(p, "api/hello/v1", "say_hello.go"), []byte(sayHelloContent), 0644)
+		}},
 		{"service/hello.go", func(p, m string) error { return createServiceInterface(p, moduleName) }},
 		{"dao/hello.go", func(p, _ string) error { return createDaoInterface(p, moduleName) }},
-		{"model/hello.go", func(p, _ string) error { return os.WriteFile(filepath.Join(p, "model/hello.go"), []byte(modelHelloContent), 0644) }},
+		{"model/hello.go", func(p, _ string) error {
+			return os.WriteFile(filepath.Join(p, "model/hello.go"), []byte(modelHelloContent), 0644)
+		}},
 		{"internal/impl.go", func(p, m string) error { return createInternalImpl(p, moduleName) }},
 		{"internal/controller/hello/hello.go", func(p, m string) error { return createControllerImpl(p, moduleName) }},
 		{"internal/service_impl/hello/hello.go", func(p, m string) error { return createServiceImpl(p, moduleName) }},
@@ -240,6 +250,14 @@ logs/
 const configYamlContent = `server:
   addr: "0.0.0.0"
   port: 8080
+  use_default_routes: true
+  health_check:
+    enabled: true
+    liveness_path: "/health"
+    readiness_path: "/ready"
+    database_check: true
+    redis_check: false
+  request_timeout: 30
 
 database:
   driver: "mysql"

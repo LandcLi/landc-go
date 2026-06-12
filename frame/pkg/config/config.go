@@ -12,15 +12,15 @@ import (
 
 type (
 	Config struct {
-		Server   ServerConfig           `json:"server" yaml:"server"`
-		Database DatabaseConfig         `json:"database" yaml:"database"`
-		Redis    RedisConfig            `json:"redis" yaml:"redis"`
-		Log      LogConfig              `json:"log" yaml:"log"`
-		JWT      JWTConfig              `json:"jwt" yaml:"jwt"`
+		Server   ServerConfig   `json:"server" yaml:"server"`
+		Database DatabaseConfig `json:"database" yaml:"database"`
+		Redis    RedisConfig    `json:"redis" yaml:"redis"`
+		Log      LogConfig      `json:"log" yaml:"log"`
+		JWT      JWTConfig      `json:"jwt" yaml:"jwt"`
 		// Other 存储用户自定义配置项（非框架标准字段）。
 		// 从 JSON/YAML 加载时，所有不在 server/database/redis/log/jwt 下的顶级键
 		// 都会被自动捕获到此处。序列化时也会合并回顶层输出。
-		Other    map[string]interface{} `json:"-" yaml:"-"`
+		Other map[string]interface{} `json:"-" yaml:"-"`
 	}
 
 	JWTConfig struct {
@@ -30,11 +30,22 @@ type (
 	}
 
 	ServerConfig struct {
-		Addr             string `json:"addr" yaml:"addr"`
-		Port             int    `json:"port" yaml:"port"`
-		ReadTimeout      int    `json:"read_timeout" yaml:"read_timeout"`
-		WriteTimeout     int    `json:"write_timeout" yaml:"write_timeout"`
-		UseDefaultRoutes bool   `json:"use_default_routes" yaml:"use_default_routes"`
+		Addr             string            `json:"addr" yaml:"addr"`
+		Port             int               `json:"port" yaml:"port"`
+		ReadTimeout      int               `json:"read_timeout" yaml:"read_timeout"`
+		WriteTimeout     int               `json:"write_timeout" yaml:"write_timeout"`
+		UseDefaultRoutes bool              `json:"use_default_routes" yaml:"use_default_routes"`
+		HealthCheck      HealthCheckConfig `json:"health_check" yaml:"health_check"`
+		RequestTimeout   int               `json:"request_timeout" yaml:"request_timeout"`
+	}
+
+	HealthCheckConfig struct {
+		Enabled       bool   `json:"enabled" yaml:"enabled"`
+		LivenessPath  string `json:"liveness_path" yaml:"liveness_path"`
+		ReadinessPath string `json:"readiness_path" yaml:"readiness_path"`
+		StartupPath   string `json:"startup_path,omitempty" yaml:"startup_path,omitempty"`
+		DatabaseCheck bool   `json:"database_check" yaml:"database_check"`
+		RedisCheck    bool   `json:"redis_check" yaml:"redis_check"`
 	}
 
 	DatabaseConfig struct {
@@ -166,6 +177,15 @@ func DefaultConfig() *Config {
 			ReadTimeout:      60,
 			WriteTimeout:     60,
 			UseDefaultRoutes: true,
+			HealthCheck: HealthCheckConfig{
+				Enabled:       true,
+				LivenessPath:  "/health",
+				ReadinessPath: "/ready",
+				StartupPath:   "",
+				DatabaseCheck: true,
+				RedisCheck:    false,
+			},
+			RequestTimeout: 0,
 		},
 		Database: DatabaseConfig{
 			Driver:          "mysql",
