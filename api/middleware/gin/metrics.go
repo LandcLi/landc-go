@@ -70,5 +70,8 @@ func Metrics() gin.HandlerFunc {
 //
 //	r.GET("/metrics", ginmw.MetricsHandler())
 func MetricsHandler() gin.HandlerFunc {
-	return promhttp.Handler().ServeHTTP
+	h := promhttp.Handler()
+	return func(c *gin.Context) {
+		h.ServeHTTP(c.Writer, c.Request)
+	}
 }

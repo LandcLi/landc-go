@@ -26,6 +26,6 @@ func MaxBodySize(maxBytes int64) gin.HandlerFunc {
 
 		// 检查读取是否被中止（超出大小会 panic，Gin 的 Recovery 会恢复）
 		// 在 c.Next() 后检查 body 读取状态
-		_ = io.CopyN(io.Discard, c.Request.Body, 1)
+		_, _ = io.CopyN(io.Discard, c.Request.Body, 1)
 	}
 }
