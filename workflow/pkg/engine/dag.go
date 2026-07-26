@@ -42,12 +42,15 @@ func NewDAGGraph(wf *model.Workflow) (*DAGGraph, error) {
 	}
 
 	for _, edge := range wf.Edges {
+		if edge.Internal {
+			continue // 内部边（如Loop回边），不参与DAG调度
+		}
 		g.adj[edge.SourceID] = append(g.adj[edge.SourceID], &EdgeInfo{
-			TargetID:     edge.TargetID,
-			SourcePort:   edge.SourcePort,
-			TargetPort:   edge.TargetPort,
+			TargetID:      edge.TargetID,
+			SourcePort:    edge.SourcePort,
+			TargetPort:    edge.TargetPort,
 			ConditionExpr: edge.ConditionExpr,
-			Label:        edge.Label,
+			Label:         edge.Label,
 		})
 		g.inDegree[edge.TargetID]++
 	}
@@ -123,11 +126,11 @@ func (g *DAGGraph) GetActivatedDownstream(nodeID string, nodeOutput string) []*E
 	return activated
 }
 
-// GetDepNodes 获取节点的直接上游
+// GetDepNodes 获取节点的直接上游（排除 Internal 回边，不参与 DAG 入度计算）
 func (g *DAGGraph) GetDepNodes(nodeID string) []string {
 	var deps []string
 	for _, edge := range g.workflow.Edges {
-		if edge.TargetID == nodeID {
+		if edge.TargetID == nodeID && !edge.Internal {
 			deps = append(deps, edge.SourceID)
 		}
 	}

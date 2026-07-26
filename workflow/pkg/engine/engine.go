@@ -60,6 +60,9 @@ func NewEngine(
 	idempCheck idempotent.IdempotencyChecker,
 	config EngineConfig,
 ) *Engine {
+	if idempCheck == nil {
+		idempCheck = idempotent.NewMemoryIdempotencyChecker(24 * time.Hour)
+	}
 	eng := &Engine{
 		dbStore:    dbStore,
 		execReg:    execReg,
@@ -156,10 +159,9 @@ func (e *Engine) StartWorkflow(ctx context.Context, workflowID string, input jso
 	return exec.ID, nil
 }
 
-// SubscribeEvents 订阅执行事件（外部可通过 channel 消费，如 WebSocket 推送）
+// SubscribeEvents 订阅执行事件（别名，兼容旧调用方）
 func (e *Engine) SubscribeEvents(ctx context.Context, execID string) (<-chan *model.WorkflowEvent, error) {
-	// 当前简化实现：外部自行消费 ExecutionContext 的事件
-	return nil, fmt.Errorf("SubscribeEvents: use GetEvents instead")
+	return e.Events(execID)
 }
 
 func (e *Engine) PauseWorkflow(ctx context.Context, execID string) error {
@@ -250,9 +252,8 @@ func (e *Engine) GetExecutionTasks(ctx context.Context, execID string) ([]*model
 }
 
 // WaitExecution 阻塞直到执行完成、失败或上下文取消。
-// 通过轮询 + 事件监听实现，适合同步等待工作流执行结果的场景。
+// 使用纯轮询方式，不与 Events() 消费竞争。
 func (e *Engine) WaitExecution(ctx context.Context, execID string) (*model.Execution, error) {
-	// 先检查当前状态
 	exec, err := e.dbStore.GetExecution(ctx, execID)
 	if err != nil {
 		return nil, err
@@ -261,25 +262,6 @@ func (e *Engine) WaitExecution(ctx context.Context, execID string) (*model.Execu
 		return exec, nil
 	}
 
-	// 尝试通过事件通道等待（如果有）
-	if evtCh := e.eventsForExec(execID); evtCh != nil {
-		for {
-			select {
-			case <-ctx.Done():
-				return e.dbStore.GetExecution(ctx, execID)
-			case evt, ok := <-evtCh:
-				if !ok {
-					// 通道关闭，查最终状态
-					return e.dbStore.GetExecution(ctx, execID)
-				}
-				if evt.Type == "workflow.completed" || evt.Type == "workflow.failed" || evt.Type == "workflow.cancelled" {
-					return e.dbStore.GetExecution(ctx, execID)
-				}
-			}
-		}
-	}
-
-	// 没有事件通道时轮询
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -580,6 +562,21 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 	retryStrategy := executor.NewRetryStrategy(node.RetryMode, node.MaxRetries, node.RetryDelay, node.RetryMaxDelay)
 	retryExec := executor.NewRetryableExecutor(execImpl, retryStrategy, true)
 
+	// 构建节点引用（供执行器感知图拓扑）
+	var nodeRefs []executor.NodeRef
+	var edgeRefs []executor.EdgeRef
+	if ec.Workflow != nil {
+		for _, n := range ec.Workflow.Nodes {
+			nodeRefs = append(nodeRefs, executor.NodeRef{ID: n.ID, Name: n.Name, Type: string(n.Type)})
+		}
+		for _, e := range ec.Workflow.Edges {
+			if e.Internal {
+				continue
+			}
+			edgeRefs = append(edgeRefs, executor.EdgeRef{SourceID: e.SourceID, TargetID: e.TargetID})
+		}
+	}
+
 	req := &executor.ExecuteRequest{
 		NodeID:      node.ID,
 		NodeName:    node.Name,
@@ -592,6 +589,10 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 		MaxRetries:  node.MaxRetries,
 		AttemptID:   task.AttemptID,
 		ExecutionID: ec.Execution.ID,
+		TriggerID:   ec.Execution.TriggerID,
+		WorkflowID:  ec.Execution.WorkflowID,
+		NodeRefs:    nodeRefs,
+		EdgeRefs:    edgeRefs,
 	}
 
 	// 记录重试事件
@@ -709,9 +710,13 @@ func (e *Engine) pushEvent(ec *ExecutionContext, eventType, nodeID, nodeName, no
 	}
 }
 
-// pushFinalEvent 推送最终事件（完成/失败/取消），并确保引擎级事件通道已关闭
+// pushFinalEvent 推送最终事件并关闭事件通道（解决"事件通道永不关闭"问题）
 func (e *Engine) pushFinalEvent(execID string, eventType string) {
 	if evtCh := e.eventsForExec(execID); evtCh != nil {
-		evtCh <- model.NewWorkflowEvent(eventType, execID, "", "", "", "")
+		select {
+		case evtCh <- model.NewWorkflowEvent(eventType, execID, "", "", "", ""):
+		default:
+		}
+		close(evtCh)
 	}
 }

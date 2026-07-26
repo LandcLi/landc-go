@@ -32,6 +32,21 @@ type ExecuteRequest struct {
 	MaxRetries  int             `json:"max_retries"`
 	AttemptID   string          `json:"attempt_id"`
 	ExecutionID string          `json:"execution_id"`
+	TriggerID   string          `json:"trigger_id"`    // 原始触发ID（如聊天sessionID）
+	WorkflowID  string          `json:"workflow_id"`   // 所属工作流
+	NodeRefs    []NodeRef       `json:"node_refs"`     // 工作流所有节点定义（供执行器感知图结构）
+	EdgeRefs    []EdgeRef       `json:"edge_refs"`     // 工作流所有边定义
+}
+
+type NodeRef struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+}
+
+type EdgeRef struct {
+	SourceID string `json:"source_id"`
+	TargetID string `json:"target_id"`
 }
 
 type ExecuteResponse struct {

@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS `wf_edges` (
   `target_port`    varchar(64)  DEFAULT NULL COMMENT '目标端口',
   `condition_expr` varchar(1024) DEFAULT NULL COMMENT '条件表达式',
   `label`          varchar(64)  DEFAULT NULL COMMENT '边标签',
+  `internal`       tinyint(1)   NOT NULL DEFAULT 0 COMMENT '内部边(Loop回边,不参与DAG调度)',
   `order_no`       int          NOT NULL DEFAULT 0 COMMENT '排序号',
   `created_at`     datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
   PRIMARY KEY (`id`),

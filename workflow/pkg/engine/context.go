@@ -75,8 +75,11 @@ func (ec *ExecutionContext) GetNodeValue(nodeID string) interface{} {
 	return ec.VariableValues[nodeID]
 }
 
-// GetInput 获取节点输入
+// GetInput 获取节点输入。
+// 默认返回所有上游节点输出的合并（key=上游节点ID），
+// 当节点配置了 InputMapping 时按映射规则提取指定上游输出。
 func (ec *ExecutionContext) GetInput(node *model.Node) json.RawMessage {
+	// 优先使用 InputMapping（显式控制）
 	if node.InputMapping != nil && len(node.InputMapping) > 0 {
 		var mapping map[string]string
 		if json.Unmarshal(node.InputMapping, &mapping) == nil {
@@ -90,6 +93,32 @@ func (ec *ExecutionContext) GetInput(node *model.Node) json.RawMessage {
 			return data
 		}
 	}
+
+	// 默认：聚合所有上游节点输出
+	// 节点执行器可通过 req.Input 拿到上游完整数据
+	var allOutputs map[string]json.RawMessage
+	hasUpstream := false
+	// 查找当前节点在工作流中的上游
+	if ec.Workflow != nil {
+		for _, edge := range ec.Workflow.Edges {
+			if edge.TargetID == node.ID && !edge.Internal {
+				if output, ok := ec.Variables[edge.SourceID]; ok {
+					if allOutputs == nil {
+						allOutputs = make(map[string]json.RawMessage)
+					}
+					allOutputs[edge.SourceID] = output
+					hasUpstream = true
+				}
+			}
+		}
+	}
+
+	if hasUpstream {
+		data, _ := json.Marshal(allOutputs)
+		return data
+	}
+
+	// 无上游（根节点），返回执行原始输入
 	return ec.Execution.Input
 }
 
