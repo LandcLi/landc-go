@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -32,16 +31,16 @@ type ExecuteRequest struct {
 	MaxRetries  int             `json:"max_retries"`
 	AttemptID   string          `json:"attempt_id"`
 	ExecutionID string          `json:"execution_id"`
-	TriggerID   string          `json:"trigger_id"`    // 原始触发ID（如聊天sessionID）
-	WorkflowID  string          `json:"workflow_id"`   // 所属工作流
-	NodeRefs    []NodeRef       `json:"node_refs"`     // 工作流所有节点定义（供执行器感知图结构）
-	EdgeRefs    []EdgeRef       `json:"edge_refs"`     // 工作流所有边定义
+	TriggerID   string          `json:"trigger_id"`
+	WorkflowID  string          `json:"workflow_id"`
+	NodeRefs    []NodeRef       `json:"node_refs"`
+	EdgeRefs    []EdgeRef       `json:"edge_refs"`
 }
 
 type NodeRef struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Type  string `json:"type"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type EdgeRef struct {
@@ -57,16 +56,17 @@ type ExecuteResponse struct {
 }
 
 // ============================================================
-// NodeExecutor 节点执行器接口
+// NodeExecutor 接口（REQ-003: 增加 Schema()）
 // ============================================================
 
 type NodeExecutor interface {
 	Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteResponse, error)
 	Type() string
+	Schema() json.RawMessage
 }
 
 // ============================================================
-// 重试策略 — 复用 landc-go/tools/ratelimit 的思路
+// 重试策略
 // ============================================================
 
 type RetryStrategy interface {
@@ -130,7 +130,7 @@ func NewRetryStrategy(mode string, maxRetries int, delaySec, maxDelaySec int64) 
 }
 
 // ============================================================
-// RetryableExecutor — 重试装饰器
+// RetryableExecutor
 // ============================================================
 
 type RetryableExecutor struct {
@@ -148,17 +148,14 @@ func (e *RetryableExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*
 	if maxAttempts <= 0 {
 		maxAttempts = 1
 	}
-
 	var lastErr error
 	attempt := req.RetryCount + 1
-
 	for ; attempt <= maxAttempts; attempt++ {
 		select {
 		case <-ctx.Done():
 			return &ExecuteResponse{Success: false, Error: ctx.Err().Error()}, ctx.Err()
 		default:
 		}
-
 		if attempt > 1 {
 			delay := e.strategy.NextDelay(attempt, 0, 0)
 			select {
@@ -167,7 +164,6 @@ func (e *RetryableExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*
 			case <-time.After(delay):
 			}
 		}
-
 		resp, err := e.inner.Execute(ctx, req)
 		if err == nil && resp.Success {
 			return resp, nil
@@ -175,7 +171,7 @@ func (e *RetryableExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*
 		if err != nil {
 			lastErr = err
 		} else {
-			lastErr = errors.New(resp.Error)
+			lastErr = fmt.Errorf("%s", resp.Error)
 		}
 	}
 	return &ExecuteResponse{
@@ -185,9 +181,10 @@ func (e *RetryableExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*
 }
 
 func (e *RetryableExecutor) Type() string { return e.inner.Type() }
+func (e *RetryableExecutor) Schema() json.RawMessage { return e.inner.Schema() }
 
 // ============================================================
-// HTTPExecutor — 复用 landc-go/tools/httpclient
+// HTTPExecutor
 // ============================================================
 
 type HTTPExecutorConfig struct {
@@ -212,17 +209,14 @@ func (e *HTTPExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*Execu
 	if err := json.Unmarshal(req.Config, &cfg); err != nil {
 		return &ExecuteResponse{Success: false, Error: fmt.Sprintf("invalid config: %v", err)}, err
 	}
-
 	method := cfg.Method
 	if method == "" {
 		method = http.MethodPost
 	}
-
 	var bodyReader io.Reader
 	if req.Input != nil {
 		bodyReader = bytes.NewReader(req.Input)
 	}
-
 	httpReq, err := http.NewRequestWithContext(ctx, method, cfg.URL, bodyReader)
 	if err != nil {
 		return &ExecuteResponse{Success: false, Error: fmt.Sprintf("create request failed: %v", err)}, err
@@ -231,29 +225,25 @@ func (e *HTTPExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*Execu
 	for k, v := range cfg.Headers {
 		httpReq.Header.Set(k, v)
 	}
-
 	httpResp, err := e.client.Do(httpReq)
 	if err != nil {
 		return &ExecuteResponse{Success: false, Error: fmt.Sprintf("http request failed: %v", err)}, err
 	}
 	defer httpResp.Body.Close()
-
 	respBody, _ := io.ReadAll(httpResp.Body)
-
 	if httpResp.StatusCode >= 400 {
 		return &ExecuteResponse{
 			Success: false,
 			Error:   fmt.Sprintf("http status %d: %s", httpResp.StatusCode, string(respBody)),
 		}, nil
 	}
-
-	return &ExecuteResponse{
-		Success: true,
-		Output:  respBody,
-	}, nil
+	return &ExecuteResponse{Success: true, Output: respBody}, nil
 }
 
 func (e *HTTPExecutor) Type() string { return string(model.NodeTypeHttp) }
+func (e *HTTPExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"status_code":{"type":"number"},"body":{"type":"string"},"headers":{"type":"object"}}}`)
+}
 
 // ============================================================
 // ScriptExecutor
@@ -279,6 +269,9 @@ func (e *ScriptExecutor) Execute(_ context.Context, req *ExecuteRequest) (*Execu
 }
 
 func (e *ScriptExecutor) Type() string { return string(model.NodeTypeScript) }
+func (e *ScriptExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"result":{"type":"string","description":"脚本执行结果"},"logs":{"type":"string"}}}`)
+}
 
 // ============================================================
 // SubWorkflowExecutor
@@ -293,6 +286,7 @@ func (e *SubWorkflowExecutor) Execute(_ context.Context, req *ExecuteRequest) (*
 }
 
 func (e *SubWorkflowExecutor) Type() string { return string(model.NodeTypeSubWorkflow) }
+func (e *SubWorkflowExecutor) Schema() json.RawMessage { return nil }
 
 // ============================================================
 // DelayExecutor
@@ -320,17 +314,4 @@ func (e *DelayExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*Exec
 }
 
 func (e *DelayExecutor) Type() string { return string(model.NodeTypeDelay) }
-
-// ============================================================
-// ConditionExecutor
-// ============================================================
-
-type ConditionExecutor struct{}
-
-func NewConditionExecutor() *ConditionExecutor { return &ConditionExecutor{} }
-
-func (e *ConditionExecutor) Execute(_ context.Context, req *ExecuteRequest) (*ExecuteResponse, error) {
-	return &ExecuteResponse{Success: true, Output: req.Input}, nil
-}
-
-func (e *ConditionExecutor) Type() string { return string(model.NodeTypeCondition) }
+func (e *DelayExecutor) Schema() json.RawMessage { return json.RawMessage(`{"type":"object","properties":{"output":{"type":"string","description":"原样传入"}}}`) }

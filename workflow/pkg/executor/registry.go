@@ -50,7 +50,6 @@ func RegisterDefault(reg *Registry) {
 	reg.Register(NewScriptExecutor())
 	reg.Register(NewSubWorkflowExecutor())
 	reg.Register(NewDelayExecutor())
-	reg.Register(NewConditionExecutor())
 	reg.Register(NewInputNodeExecutor())
 	reg.Register(NewOutputNodeExecutor())
 	reg.Register(NewConditionNodeExecutor())

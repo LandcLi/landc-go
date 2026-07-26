@@ -52,6 +52,7 @@ type Node struct {
 	OutputMapping     json.RawMessage  `gorm:"type:text;comment:输出映射(JSON)" json:"output_mapping,omitempty"`
 	ConditionExpr     string           `gorm:"size:1024;comment:条件表达式" json:"condition_expr,omitempty"`
 	ParallelBranches  int              `gorm:"not null;default:1;comment:并行分支数" json:"parallel_branches"`
+	OutputSchema      json.RawMessage  `gorm:"type:text;comment:输出模式(JSON Schema,变量选择器用)" json:"output_schema,omitempty"`
 	OrderNo           int              `gorm:"not null;default:0;comment:排序号" json:"order_no"`
 	CreatedAt         time.Time        `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time        `gorm:"autoUpdateTime" json:"updated_at"`

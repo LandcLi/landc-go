@@ -23,6 +23,9 @@ func (e *InputNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) (*Ex
 }
 
 func (e *InputNodeExecutor) Type() string { return string(model.NodeTypeInput) }
+func (e *InputNodeExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"user_input":{"type":"string","description":"用户原始输入"}}}`)
+}
 
 // ============================================================
 // OutputNodeExecutor — 出口节点，汇聚上游输出为最终结果
@@ -41,6 +44,9 @@ func (e *OutputNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) (*E
 }
 
 func (e *OutputNodeExecutor) Type() string { return string(model.NodeTypeOutput) }
+func (e *OutputNodeExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"output":{"type":"string","description":"汇聚结果"}}}`)
+}
 
 // ============================================================
 // ConditionNodeExecutor — 条件判断节点
@@ -90,6 +96,9 @@ func (e *ConditionNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) 
 }
 
 func (e *ConditionNodeExecutor) Type() string { return string(model.NodeTypeCondition) }
+func (e *ConditionNodeExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"branch":{"type":"string","description":"true/false","enum":["true","false"]}}}`)
+}
 
 // evaluateJSONField 从 JSON 中提取字段做语义匹配
 func evaluateJSONField(inputRaw string, cfg *conditionConfig) bool {
@@ -230,6 +239,9 @@ func (e *SwitchNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) (*E
 }
 
 func (e *SwitchNodeExecutor) Type() string { return string(model.NodeTypeSwitch) }
+func (e *SwitchNodeExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"match":{"type":"string","description":"匹配的端口名"},"value":{"type":"string","description":"匹配值"}}}`)
+}
 
 // extractMatchValue 从输入中提取要匹配的值
 func extractMatchValue(input json.RawMessage, cfg *switchConfig) string {
@@ -296,3 +308,6 @@ func (e *HumanInputExecutor) Execute(ctx context.Context, req *ExecuteRequest) (
 }
 
 func (e *HumanInputExecutor) Type() string { return string(model.NodeTypeHumanInput) }
+func (e *HumanInputExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"input":{"type":"string","description":"用户提供的输入"}}}`)
+}

@@ -251,6 +251,181 @@ func (e *Engine) GetExecutionTasks(ctx context.Context, execID string) ([]*model
 	return e.dbStore.ListTasks(ctx, execID)
 }
 
+// RunNode 单节点运行（REQ-001）。
+// 不经过 DAG 引擎，直接调用节点执行器，用于前端调试。
+func (e *Engine) RunNode(ctx context.Context, workflowID, nodeID string, inputs map[string]string) (*executor.ExecuteResponse, error) {
+	wf, err := e.dbStore.GetWorkflowWithNodes(ctx, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("load workflow: %w", err)
+	}
+
+	var targetNode *model.Node
+	for _, n := range wf.Nodes {
+		if n.ID == nodeID {
+			targetNode = n
+			break
+		}
+	}
+	if targetNode == nil {
+		return nil, fmt.Errorf("node %s not found in workflow %s", nodeID, workflowID)
+	}
+
+	execImpl := e.execReg.GetByTypeStr(string(targetNode.Type))
+	if execImpl == nil {
+		return nil, fmt.Errorf("no executor for node type: %s", targetNode.Type)
+	}
+
+	// 构建模拟输入
+	input := e.buildMockInput(inputs)
+
+	req := &executor.ExecuteRequest{
+		NodeID:   nodeID,
+		NodeName: targetNode.Name,
+		NodeType: string(targetNode.Type),
+		Config:   targetNode.Config,
+		Input:    input,
+	}
+	resp, err := execImpl.Execute(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// buildMockInput 从 map 构建模拟输入（单节点调试用）
+func (e *Engine) buildMockInput(inputs map[string]string) json.RawMessage {
+	if len(inputs) == 0 {
+		return json.RawMessage(`{}`)
+	}
+	m := make(map[string]string)
+	for k, v := range inputs {
+		m[k] = v
+	}
+	data, _ := json.Marshal(m)
+	return data
+}
+
+// GetExecutionTracing 获取执行的追踪树（REQ-002）。
+// 返回树形结构，按父节点/分支/迭代组织，供前端树形面板展示。
+func (e *Engine) GetExecutionTracing(ctx context.Context, execID string) ([]*model.TracingNode, error) {
+	tasks, err := e.dbStore.ListTasks(ctx, execID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建 nodeId → Tasks 的查找表
+	type taskInfo struct {
+		Status     string
+		ElapsedMs  int64
+		Output     interface{}
+		Error      string
+	}
+	nodeTasks := make(map[string]*taskInfo)
+	for _, t := range tasks {
+		var elapsed int64
+		if t.StartedAt != nil && t.FinishedAt != nil {
+			elapsed = t.FinishedAt.Sub(*t.StartedAt).Milliseconds()
+		}
+		var output interface{}
+		if t.Output != nil {
+			json.Unmarshal(t.Output, &output)
+		}
+		nodeTasks[t.NodeID] = &taskInfo{
+			Status:    string(t.Status),
+			ElapsedMs: elapsed,
+			Output:    output,
+			Error:     t.Error,
+		}
+	}
+
+	// 按 parent 组织：key = parentNodeID, branchID 或 ""(根)
+	children := make(map[tracingChildKey][]*model.TracingNode)
+
+	// 获取工作流定义获取节点列表
+	exec, err := e.dbStore.GetExecution(ctx, execID)
+	if err != nil {
+		return nil, err
+	}
+	wf, err := e.dbStore.GetWorkflowWithNodes(ctx, exec.WorkflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, n := range wf.Nodes {
+		info := nodeTasks[n.ID]
+		if info == nil {
+			continue
+		}
+		tn := &model.TracingNode{
+			ID:        n.ID,
+			Name:      n.Name,
+			Type:      string(n.Type),
+			Status:    info.Status,
+			ElapsedMs: info.ElapsedMs,
+			Output:    info.Output,
+			Error:     info.Error,
+		}
+
+		// 查找上游（父节点）
+		parentID := ""
+		branchID := ""
+		for _, edge := range wf.Edges {
+			if edge.TargetID == n.ID {
+				parentNode := findNodeByID(wf, edge.SourceID)
+				if parentNode != nil && (parentNode.Type == model.NodeTypeCondition || parentNode.Type == model.NodeTypeSwitch) {
+					parentID = edge.SourceID
+					branchID = edge.SourcePort
+				}
+			}
+		}
+
+		ck := tracingChildKey{parentID: parentID, branchID: branchID}
+		children[ck] = append(children[ck], tn)
+	}
+
+	// 组装树：根节点是 parentID == "" 的
+	var roots []*model.TracingNode
+	for _, tn := range children[tracingChildKey{}] {
+		attachChildren(tn, children)
+		roots = append(roots, tn)
+	}
+
+	return roots, nil
+}
+
+type tracingChildKey struct {
+	parentID string
+	branchID string
+}
+
+func attachChildren(parent *model.TracingNode, children map[tracingChildKey][]*model.TracingNode) {
+	// 查找该节点作为父节点的直接子节点
+	ck := tracingChildKey{parentID: parent.ID}
+	for _, child := range children[ck] {
+		attachChildren(child, children)
+		parent.Children = append(parent.Children, child)
+	}
+	// 带分支的子节点
+	for ck, nodes := range children {
+		if ck.parentID == parent.ID && ck.branchID != "" {
+			for _, child := range nodes {
+				attachChildren(child, children)
+				child.BranchID = ck.branchID
+				parent.Children = append(parent.Children, child)
+			}
+		}
+	}
+}
+
+func findNodeByID(wf *model.Workflow, nodeID string) *model.Node {
+	for _, n := range wf.Nodes {
+		if n.ID == nodeID {
+			return n
+		}
+	}
+	return nil
+}
+
 // WaitExecution 阻塞直到执行完成、失败或上下文取消。
 // 使用纯轮询方式，不与 Events() 消费竞争。
 func (e *Engine) WaitExecution(ctx context.Context, execID string) (*model.Execution, error) {
