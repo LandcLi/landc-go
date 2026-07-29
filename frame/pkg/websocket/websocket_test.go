@@ -38,21 +38,27 @@ func TestHub_OnConnect(t *testing.T) {
 	hub := NewHub()
 	hub.Run()
 
+	var mu sync.Mutex
 	onConnectCalled := false
 	hub.OnConnect(func(conn *Conn) {
+		mu.Lock()
 		onConnectCalled = true
+		mu.Unlock()
 	})
 
 	conn := &Conn{
-		ID:   "test_conn",
-		hub:  hub,
+		ID:    "test_conn",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
 	hub.register <- conn
 	time.Sleep(50 * time.Millisecond)
 
-	if !onConnectCalled {
+	mu.Lock()
+	called := onConnectCalled
+	mu.Unlock()
+	if !called {
 		t.Error("OnConnect callback should be called")
 	}
 }
@@ -61,14 +67,17 @@ func TestHub_OnDisconnect(t *testing.T) {
 	hub := NewHub()
 	hub.Run()
 
+	var mu sync.Mutex
 	onDisconnectCalled := false
 	hub.OnDisconnect(func(conn *Conn) {
+		mu.Lock()
 		onDisconnectCalled = true
+		mu.Unlock()
 	})
 
 	conn := &Conn{
-		ID:   "test_conn",
-		hub:  hub,
+		ID:    "test_conn",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -78,7 +87,10 @@ func TestHub_OnDisconnect(t *testing.T) {
 	hub.unregister <- conn
 	time.Sleep(50 * time.Millisecond)
 
-	if !onDisconnectCalled {
+	mu.Lock()
+	called := onDisconnectCalled
+	mu.Unlock()
+	if !called {
 		t.Error("OnDisconnect callback should be called")
 	}
 }

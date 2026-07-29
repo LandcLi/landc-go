@@ -635,8 +635,6 @@ func (v *EnumsValidator) Validate(value interface{}) error {
 	} else {
 		return fmt.Errorf("value must be a string")
 	}
-
-	return nil
 }
 
 // EmailValidator 邮箱地址验证器
@@ -1337,8 +1335,6 @@ func (v *InValidator) Validate(value interface{}) error {
 	} else {
 		return fmt.Errorf("in validation only applies to strings")
 	}
-
-	return nil
 }
 
 // NotInValidator 不包含验证器

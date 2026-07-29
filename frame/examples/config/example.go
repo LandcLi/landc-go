@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 func RunConfigExample() {
-	fmt.Println("=== Config Example ===\n")
+	fmt.Println("=== Config Example ===")
 
 	fmt.Println("1. Using default config:")
 	err := config.InitGlobalConfigWithDefault()

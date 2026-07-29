@@ -83,10 +83,12 @@ func (c *Command) AddOption(option string, hasValue bool) {
 // Run 运行命令（自动处理 Bootstrap 生命周期 + 信号监听）
 func (c *Command) Run(ctx context.Context) error {
 	// Bootstrap 初始化（config + db）
-	if err := c.Bootstrap.Init(ctx); err != nil {
-		return fmt.Errorf("bootstrap init failed: %w", err)
+	if c.Bootstrap != nil {
+		if err := c.Bootstrap.Init(ctx); err != nil {
+			return fmt.Errorf("bootstrap init failed: %w", err)
+		}
+		defer c.Bootstrap.Close()
 	}
-	defer c.Bootstrap.Close()
 
 	// 信号监听（Ctrl+C / SIGTERM）
 	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

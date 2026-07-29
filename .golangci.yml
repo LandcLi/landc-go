@@ -1,0 +1,52 @@
+# See https://golangci-lint.run/usage/configuration/ for reference.
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - gofmt        # Check whether code was gofmt'd
+    - govet        # Report suspicious constructs
+    - staticcheck  # Static analysis
+    - errcheck     # Check for unchecked errors
+    - ineffassign  # Detect ineffective assignments
+    - unused       # Check for unused constants/variables/functions/types
+    - misspell     # Find commonly misspelled English words
+    - whitespace   # Detection of leading/trailing whitespace
+    - gosimple     # Simplify code
+    - bodyclose    # Check that HTTP response body is closed
+    - gocritic     # Provide diagnostics for common mistakes
+  disable:
+    - deadcode     # Deprecated (replaced by unused)
+    - structcheck  # Deprecated (replaced by unused)
+    - varcheck     # Deprecated (replaced by unused)
+
+linters-settings:
+  gofmt:
+    simplify: true
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - ifElseChain
+      - hugeParam
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosimple
+        - unused
+    - path: examples/
+      linters:
+        - errcheck
+  max-issues-per-linter: 0
+  max-same-issues: 0

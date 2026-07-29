@@ -140,7 +140,8 @@ func TestRegisterHandler(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		expectedBody := `{"id":999,"name":"GroupTest"}`
+		// Response is wrapped in standard response format
+		expectedBody := `{"code":10000,"data":{"id":999,"name":"GroupTest"},"message":"success"}`
 		if w.Body.String() != expectedBody {
 			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
 		}
@@ -169,7 +170,8 @@ func TestRegisterHandler(t *testing.T) {
 			t.Errorf("Expected response header 'response-value', got %s", responseHeader)
 		}
 
-		expectedBody := `{"id":123,"received":"custom-value"}`
+		// Response is wrapped in standard response format
+		expectedBody := `{"code":10000,"data":{"id":123,"received":"custom-value"},"message":"success"}`
 		if w.Body.String() != expectedBody {
 			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
 		}
@@ -202,7 +204,8 @@ func TestParamParsing(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		expectedBody := `{"id":456,"name":"John"}`
+		// Response is wrapped in standard response format
+		expectedBody := `{"code":10000,"data":{"id":456,"name":"John"},"message":"success"}`
 		if w.Body.String() != expectedBody {
 			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
 		}
@@ -218,7 +221,8 @@ func TestParamParsing(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
-		expectedBody := `{"id":789,"name":"Alice"}`
+		// Response is wrapped in standard response format
+		expectedBody := `{"code":10000,"data":{"id":789,"name":"Alice"},"message":"success"}`
 		if w.Body.String() != expectedBody {
 			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
 		}
