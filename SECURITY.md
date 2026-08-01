@@ -19,7 +19,7 @@ Instead, report it privately via one of the following methods:
 - **GitHub Security Advisory**: Navigate to the repository's
   [Security Advisories](https://github.com/LandcLi/landc-go/security/advisories)
   tab and click "Report a vulnerability"
-- **Email**: [INSERT SECURITY EMAIL ADDRESS]
+- **Email**: security@landcli.dev
 
 ### What to include in your report
 

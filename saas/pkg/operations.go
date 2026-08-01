@@ -108,7 +108,15 @@ func (m *Manager) RevokeAccess(ctx context.Context, tx *gorm.DB, dataType string
 		return err
 	}
 
-	// 1. 删除访问记录
+	// 1. 检查权限（只有拥有者才能撤销共享，防止越权撤销他人共享）
+	var ownership model.DataOwnership
+	err = tx.Where("data_type = ? AND data_id = ? AND owner_id = ?",
+		dataType, dataID, tenantID).First(&ownership).Error
+	if err != nil {
+		return fmt.Errorf("无权限撤销此数据的共享")
+	}
+
+	// 2. 删除访问记录
 	err = tx.Where("data_type = ? AND data_id = ? AND tenant_id = ?",
 		dataType, dataID, fromTenantID).Delete(&model.DataAccess{}).Error
 	if err != nil {
@@ -211,49 +219,46 @@ func (m *Manager) GetDataAccessors(ctx context.Context, dataType string, dataID 
 	return accesses, err
 }
 
-// ListTenantData 列出租户可访问的所有数据
+// ListTenantData 列出租户可访问的所有数据（SQL 层分页，避免全量加载）
+// 拥有 + 共享 两个数据集 UNION 去重；表名取自模型常量（非用户输入），
+// dataType/tenantID/时间/分页参数均参数化绑定，防 SQL 注入。
 func (m *Manager) ListTenantData(ctx context.Context, dataType string, tenantID uint64, page, pageSize int) ([]uint64, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 1000 {
+		pageSize = 1000
+	}
+
+	ownershipTable := model.DataOwnership{}.TableName()
+	accessTable := model.DataAccess{}.TableName()
+	unionSub := fmt.Sprintf(
+		"(SELECT data_id FROM %s WHERE data_type = ? AND owner_id = ? UNION SELECT data_id FROM %s WHERE data_type = ? AND tenant_id = ? AND (expire_at IS NULL OR expire_at > ?)) AS tenant_data",
+		ownershipTable, accessTable,
+	)
+	args := []interface{}{dataType, tenantID, dataType, tenantID, time.Now()}
+
+	// 1. 总数（UNION 已去重）
 	var total int64
+	if err := m.db.Session(&gorm.Session{NewDB: true}).
+		Raw("SELECT COUNT(*) FROM "+unionSub, args...).
+		Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 2. 分页数据
 	var dataIDs []uint64
-
-	// 1. 查询拥有
-	var ownerships []model.DataOwnership
-	m.db.Where("data_type = ? AND owner_id = ?", dataType, tenantID).Find(&ownerships)
-	for _, o := range ownerships {
-		dataIDs = append(dataIDs, o.DataID)
+	if err := m.db.Session(&gorm.Session{NewDB: true}).
+		Raw("SELECT data_id FROM "+unionSub+" ORDER BY data_id LIMIT ? OFFSET ?",
+			append(args, pageSize, (page-1)*pageSize)...).
+		Scan(&dataIDs).Error; err != nil {
+		return nil, 0, err
 	}
 
-	// 2. 查询共享
-	var accesses []model.DataAccess
-	m.db.Where("data_type = ? AND tenant_id = ? AND (expire_at IS NULL OR expire_at > ?)",
-		dataType, tenantID, time.Now()).Find(&accesses)
-	for _, a := range accesses {
-		dataIDs = append(dataIDs, a.DataID)
-	}
-
-	// 3. 去重
-	uniqueIDs := make([]uint64, 0)
-	seen := make(map[uint64]bool)
-	for _, id := range dataIDs {
-		if !seen[id] {
-			uniqueIDs = append(uniqueIDs, id)
-			seen[id] = true
-		}
-	}
-
-	total = int64(len(uniqueIDs))
-
-	// 4. 分页
-	start := (page - 1) * pageSize
-	if start >= len(uniqueIDs) {
-		return []uint64{}, total, nil
-	}
-	end := start + pageSize
-	if end > len(uniqueIDs) {
-		end = len(uniqueIDs)
-	}
-
-	return uniqueIDs[start:end], total, nil
+	return dataIDs, total, nil
 }
 
 // CleanupExpiredAccess 清理过期的访问记录（定时任务）

@@ -263,6 +263,82 @@ func TestConstraintValidationSQLSafety(t *testing.T) {
 	}
 }
 
+// TestRevokeAccessAuthorization 验证越权防护：非 owner 租户不能撤销他人的共享
+func TestRevokeAccessAuthorization(t *testing.T) {
+	db, m := setupTestDB(t)
+
+	// 租户 1 创建并共享数据 1 给租户 2
+	tx := db.Begin()
+	if err := m.CreateData(tenantCtx(1), tx, "test_business_data", 1); err != nil {
+		t.Fatalf("tenant1 create: %v", err)
+	}
+	if err := m.ShareData(tenantCtx(1), tx, "test_business_data", 1, 2, AccessRead, nil, nil); err != nil {
+		t.Fatalf("share: %v", err)
+	}
+	tx.Commit()
+
+	// 租户 3（非 owner）尝试撤销租户 1 的数据共享 → 必须失败
+	tx = db.Begin()
+	err := m.RevokeAccess(tenantCtx(3), tx, "test_business_data", 1, 2)
+	tx.Rollback()
+	if err == nil {
+		t.Fatal("non-owner tenant must not be able to revoke others' sharing")
+	}
+
+	// 共享记录应仍然存在
+	var count int64
+	db.Model(&model.DataAccess{}).Where("data_type = ? AND data_id = ? AND tenant_id = ?",
+		"test_business_data", uint64(1), uint64(2)).Count(&count)
+	if count != 1 {
+		t.Errorf("access record should remain after unauthorized revoke, count=%d", count)
+	}
+}
+
+// TestListTenantDataPagination 验证 SQL 层分页与去重
+func TestListTenantDataPagination(t *testing.T) {
+	db, m := setupTestDB(t)
+
+	// 租户 1 拥有数据 1-6，共享数据 3、6 给租户 2（数据 3 同时拥有+共享，验证去重）
+	tx := db.Begin()
+	for _, id := range []uint64{1, 2, 3, 4, 5, 6} {
+		if err := m.CreateData(tenantCtx(1), tx, "test_business_data", id); err != nil {
+			t.Fatalf("create %d: %v", id, err)
+		}
+	}
+	if err := m.ShareData(tenantCtx(1), tx, "test_business_data", 3, 2, AccessRead, nil, nil); err != nil {
+		t.Fatalf("share 3: %v", err)
+	}
+	if err := m.ShareData(tenantCtx(1), tx, "test_business_data", 6, 2, AccessRead, nil, nil); err != nil {
+		t.Fatalf("share 6: %v", err)
+	}
+	tx.Commit()
+
+	// 租户 2 可访问：数据 3（共享+拥有的去重）和 6（共享）
+	data, total, err := m.ListTenantData(context.Background(), "test_business_data", 2, 1, 10)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if total != 2 {
+		t.Errorf("expected total 2 (dedup), got %d", total)
+	}
+	if len(data) != 2 || !contains(data, 3) || !contains(data, 6) {
+		t.Errorf("unexpected data list: %v", data)
+	}
+
+	// 分页：每页 1 条
+	page1, _, err := m.ListTenantData(context.Background(), "test_business_data", 2, 1, 1)
+	if err != nil {
+		t.Fatalf("page1: %v", err)
+	}
+	page2, _, err := m.ListTenantData(context.Background(), "test_business_data", 2, 2, 1)
+	if err != nil {
+		t.Fatalf("page2: %v", err)
+	}
+	if len(page1) != 1 || len(page2) != 1 || page1[0] == page2[0] {
+		t.Errorf("pagination broken: page1=%v page2=%v", page1, page2)
+	}
+}
+
 func contains(list []uint64, v uint64) bool {
 	for _, item := range list {
 		if item == v {

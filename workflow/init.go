@@ -6,13 +6,13 @@ import (
 
 	"github.com/LandcLi/landc-go/frame/pkg/cache"
 	"github.com/LandcLi/landc-go/frame/pkg/db"
-	"github.com/LandcLi/landc-go/frame/pkg/trace"
 	"github.com/LandcLi/landc-go/log/facade"
 	"github.com/LandcLi/landc-go/workflow/pkg/engine"
 	"github.com/LandcLi/landc-go/workflow/pkg/executor"
 	"github.com/LandcLi/landc-go/workflow/pkg/idempotent"
 	"github.com/LandcLi/landc-go/workflow/pkg/observer"
 	storepkg "github.com/LandcLi/landc-go/workflow/pkg/store"
+	"gorm.io/gorm"
 )
 
 // Init 从框架全局配置初始化工作流框架。
@@ -49,7 +49,6 @@ func Init() error {
 	// 选择幂等检查器：Redis 可用时用 Redis 版，否则用内存版
 	var idempCheck idempotent.IdempotencyChecker
 	ttl := time.Duration(cfg.Engine.IdempotencyTTL) * time.Second
-	_ = ttl
 	if redisClient := cache.GetRedis(); redisClient != nil {
 		redisStore := storepkg.NewRedisStore("wf")
 		idempCheck = idempotent.NewStoreIdempotencyChecker(redisStore, ttl)
@@ -69,7 +68,6 @@ func Init() error {
 
 	// 通过 DI 注册引擎
 	engine.RegisterEngine(eng)
-	_ = trace.TraceID
 
 	return nil
 }
@@ -83,15 +81,12 @@ func MustInit() {
 
 // InitWithComponents 使用手动传入的组件初始化（不依赖框架全局配置）。
 // 适用于测试或不想使用框架 DB/Cache 全局单例的场景。
-// gormDB 必须是 *gorm.DB 但通过接口接受以避免导入 gorm。
-func InitWithComponents(gormDB interface{ AutoMigrate(dst ...interface{}) error }) error {
-	realDB := db.GetDB()
-	if realDB == nil {
-		return fmt.Errorf("workflow: DB not initialized")
+func InitWithComponents(gormDB *gorm.DB) error {
+	if gormDB == nil {
+		return fmt.Errorf("workflow: gormDB must not be nil")
 	}
-	_ = gormDB
 
-	dbStore := storepkg.NewDBStore(realDB)
+	dbStore := storepkg.NewDBStore(gormDB)
 	if err := dbStore.AutoMigrate(); err != nil {
 		return err
 	}
