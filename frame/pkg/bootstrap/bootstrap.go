@@ -150,13 +150,22 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 
 	// Auto-init JWT from config (optional).
 	// jwt:` section in config.yaml is parsed into Config.JWT directly.
-	if cfg := config.GetConfig(); cfg != nil && cfg.JWT.Secret != "" && cfg.JWT.ExpireTime != "" {
-		expire, err := time.ParseDuration(cfg.JWT.ExpireTime)
+	// HS256 需要 Secret；RS256/ES256 需要 PrivateKeyPath（或 PublicKeyPath）
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return nil
+	}
+	jwtCfg := cfg.JWT
+	if jwtCfg.ExpireTime != "" && (jwtCfg.Secret != "" || jwtCfg.PrivateKeyPath != "" || jwtCfg.SigningMethod != "") {
+		expire, err := time.ParseDuration(jwtCfg.ExpireTime)
 		if err == nil {
 			auth.InitJWT(&auth.JWTConfig{
-				Secret:     cfg.JWT.Secret,
-				ExpireTime: expire,
-				Issuer:     cfg.JWT.Issuer,
+				Secret:         jwtCfg.Secret,
+				ExpireTime:     expire,
+				Issuer:         jwtCfg.Issuer,
+				SigningMethod:  jwtCfg.SigningMethod,
+				PrivateKeyPath: jwtCfg.PrivateKeyPath,
+				PublicKeyPath:  jwtCfg.PublicKeyPath,
 			})
 		}
 	}

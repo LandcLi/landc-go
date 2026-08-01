@@ -9,6 +9,8 @@
 
 ### 新增
 
+- **JWT 支持非对称签名**：`JWTConfig` 新增 `SigningMethod`（HS256/RS256/ES256）、`PrivateKeyPath`、`PublicKeyPath` 及可编程注入的 `PrivateKey`/`PublicKey`；`ParseToken` 通过算法白名单（`WithValidMethods`）防御算法混淆攻击；PEM 密钥按路径缓存加载；未配置 `SigningMethod` 时默认 HS256，向后兼容
+
 - 添加 GitHub Actions CI 流水线（lint / test / build / security 四 job）
 - 添加 `.golangci.yml`（gofmt / govet / staticcheck / errcheck / gosec / gocyclo 等）
 - 添加 `Makefile` 统一构建、测试、Lint 命令
