@@ -1,3 +1,6 @@
+//go:build goframe
+// +build goframe
+
 package example
 
 import (

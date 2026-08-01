@@ -1,3 +1,8 @@
+//go:build goframe
+// +build goframe
+
+// GoFrame 中间件适配为可选集成，仅在使用 `-tags goframe` 构建时编译，
+// 避免 api 模块默认引入 GoFrame 全量依赖。
 package goframe
 
 import (

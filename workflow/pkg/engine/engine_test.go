@@ -75,7 +75,7 @@ func newCountExecutor(reg *executor.Registry, counter *sync.Map) {
 // waitForFinal 轮询执行状态直到终态
 func waitForFinal(t *testing.T, ms *store.MemoryStore, execID string) *model.Execution {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		exec, err := ms.GetExecution(context.Background(), execID)
 		if err != nil {

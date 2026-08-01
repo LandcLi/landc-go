@@ -151,9 +151,16 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 	// Auto-init JWT from config (optional).
 	// jwt:` section in config.yaml is parsed into Config.JWT directly.
 	// HS256 需要 Secret；RS256/ES256 需要 PrivateKeyPath（或 PublicKeyPath）
-	cfg := config.GetConfig()
+	applyJWTFromConfig(config.GetConfig())
+
+	return nil
+}
+
+// applyJWTFromConfig 从全局配置同步 JWT 配置到 auth 包
+// 启动初始化与配置热更新时复用，保证两者行为一致
+func applyJWTFromConfig(cfg *config.Config) {
 	if cfg == nil {
-		return nil
+		return
 	}
 	jwtCfg := cfg.JWT
 	if jwtCfg.ExpireTime != "" && (jwtCfg.Secret != "" || jwtCfg.PrivateKeyPath != "" || jwtCfg.SigningMethod != "") {
@@ -169,8 +176,20 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 			})
 		}
 	}
+}
 
-	return nil
+// WatchJWTConfig 监听配置文件变化并热更新 JWT 配置。
+// 依赖 configPath 已通过 SetConfigPath 设置；返回的 stop 函数可停止监听。
+func (b *Bootstrap) WatchJWTConfig(interval time.Duration) (stop func()) {
+	if b.configPath == "" {
+		return func() {}
+	}
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+	return config.WatchConfig(b.configPath, interval, func(cfg *config.Config) {
+		applyJWTFromConfig(cfg)
+	})
 }
 
 func (b *Bootstrap) Run(ctx context.Context) error {

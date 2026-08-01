@@ -55,4 +55,4 @@ err, _ := core.NewCustomError(60001, "余额不足")
 ## 框架中间件
 
 - `middleware/gin` — Gin 中间件（自动转换错误为规范响应）
-- `middleware/goframe` — GoFrame 中间件
+- `middleware/goframe` — GoFrame 中间件（**可选集成**，默认不编译；使用 `go build -tags goframe` 启用，避免引入 GoFrame 全量依赖）

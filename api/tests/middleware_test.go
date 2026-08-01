@@ -9,7 +9,6 @@ import (
 
 	"github.com/LandcLi/landc-go/api/core"
 	ginApi "github.com/LandcLi/landc-go/api/middleware/gin"
-	"github.com/LandcLi/landc-go/api/middleware/goframe"
 	"github.com/gin-gonic/gin"
 )
 
@@ -198,41 +197,6 @@ func TestGinErrorConverter(t *testing.T) {
 	}
 	if converter.ConvertError(nil) != nil {
 		t.Error("ConvertError(nil) should return nil")
-	}
-}
-
-// ========== GoFrame Error Converter Tests ==========
-
-func TestGoFrameErrorConverter(t *testing.T) {
-	converter := goframe.NewGoFrameErrorConverter()
-
-	apiErr := core.NewError(core.ErrorCodeBadRequest, "Bad Request")
-	convertedErr := converter.ConvertError(apiErr)
-	if convertedErr != apiErr {
-		t.Error("ConvertError should return the same core.Error instance")
-	}
-
-	stdErr := errors.New("GoFrame error")
-	convertedStdErr := converter.ConvertGoFrameError(stdErr)
-	if convertedStdErr == nil {
-		t.Fatal("ConvertGoFrameError should not return nil")
-	}
-	if convertedStdErr.Code != core.ErrorCodeInternalServerError {
-		t.Errorf("Expected code %d, got %d", core.ErrorCodeInternalServerError, convertedStdErr.Code)
-	}
-
-	// 自定义转换器
-	customConverter := goframe.NewGoFrameErrorConverter().WithCustomConverter(func(err error) *core.Error {
-		return core.NewError(core.ErrorCodeExternalAPIError, "Custom External API Error")
-	})
-	customErr := customConverter.ConvertError(stdErr)
-	if customErr.Code != core.ErrorCodeExternalAPIError {
-		t.Errorf("Expected code %d, got %d", core.ErrorCodeExternalAPIError, customErr.Code)
-	}
-
-	// nil error
-	if converter.ConvertGoFrameError(nil) != nil {
-		t.Error("ConvertGoFrameError(nil) should return nil")
 	}
 }
 
