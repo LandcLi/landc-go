@@ -15,14 +15,15 @@ import (
 
 type (
 	Bootstrap struct {
-		configLoader ConfigLoader
-		configPath   string
-		components   []Component
-		beforeInit   []InitFunc
-		afterInit    []InitFunc
-		beforeRun    []RunFunc
-		afterRun     []RunFunc
-		autoInit     bool
+		configLoader   ConfigLoader
+		configPath     string
+		components     []Component
+		beforeInit     []InitFunc
+		afterInit      []InitFunc
+		beforeRun      []RunFunc
+		afterRun       []RunFunc
+		autoInit       bool
+		jwtWatcherStop func()
 	}
 
 	ConfigLoader interface {
@@ -123,7 +124,22 @@ func (b *Bootstrap) Init(ctx context.Context) error {
 		}
 	}
 
+	// 接入生命周期：初始化完成后自动启动 JWT 配置热更新监听，
+	// 由 Close 统一停止
+	b.startJWTWatcher()
+
 	return nil
+}
+
+// startJWTWatcher 启动 JWT 配置热更新监听（幂等：仅未启动且配置了 configPath 时生效）
+func (b *Bootstrap) startJWTWatcher() {
+	if b.jwtWatcherStop != nil {
+		return
+	}
+	if b.configPath == "" {
+		return
+	}
+	b.jwtWatcherStop = b.WatchJWTConfig(0)
 }
 
 func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
@@ -209,6 +225,12 @@ func (b *Bootstrap) Run(ctx context.Context) error {
 }
 
 func (b *Bootstrap) Close() error {
+	// 先停止后台监听（JWT 配置热更新等）
+	if b.jwtWatcherStop != nil {
+		b.jwtWatcherStop()
+		b.jwtWatcherStop = nil
+	}
+
 	for i := len(b.components) - 1; i >= 0; i-- {
 		component := b.components[i]
 		if err := component.Close(); err != nil {

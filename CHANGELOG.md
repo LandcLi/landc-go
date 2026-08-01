@@ -28,7 +28,7 @@
 - `SECURITY.md` / `CODE_OF_CONDUCT.md` 占位符替换为实际联系邮箱
 - `SubWorkflowExecutor` 从静默透传改为明确报错（避免"宣称支持但无实现"）
 - **api 模块 GoFrame 依赖过重**：`middleware/goframe` 及示例改为 `-tags goframe` 可选编译，默认构建不再引入 GoFrame 全量依赖
-- **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig`，配置文件变化时自动同步 JWT 配置（复用 `applyJWTFromConfig`）
+- **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig`，配置文件变化时自动同步 JWT 配置（复用 `applyJWTFromConfig`）；已**接入生命周期**——`Init` 完成后自动启动监听，`Close` 时自动停止，无需手动调用
 
 - 添加 GitHub Actions CI 流水线（lint / test / build / security 四 job）
 - 添加 `.golangci.yml`（gofmt / govet / staticcheck / errcheck / gosec / gocyclo 等）
