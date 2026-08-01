@@ -3,6 +3,8 @@ package websocket
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,7 +36,8 @@ func (u *Upgrader) toGorilla() *websocket.Upgrader {
 	}
 	checkOrigin := u.CheckOrigin
 	if checkOrigin == nil {
-		checkOrigin = func(r *http.Request) bool { return true }
+		// 默认同源校验：仅允许与请求 Host 一致的 Origin，防止 CSWSH（跨站 WebSocket 劫持）
+		checkOrigin = defaultCheckOrigin
 	}
 	timeout := u.HandshakeTimeout
 	if timeout <= 0 {
@@ -46,6 +49,34 @@ func (u *Upgrader) toGorilla() *websocket.Upgrader {
 		CheckOrigin:      checkOrigin,
 		HandshakeTimeout: timeout,
 	}
+}
+
+// defaultCheckOrigin 默认跨域校验：要求 Origin 与请求 Host 同源。
+// 非浏览器客户端（无 Origin 头）默认放行。
+func defaultCheckOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// 无 Origin 头的客户端（如 curl、服务端 SDK）直接放行
+		return true
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+
+	// 校验协议与 Host（防止跨协议攻击，如 https 站点到 http 的 WS）
+	expectedScheme := "https"
+	if r.TLS != nil {
+		expectedScheme = "https"
+	} else {
+		expectedScheme = "http"
+	}
+	if originURL.Scheme != expectedScheme {
+		return false
+	}
+
+	return strings.EqualFold(originURL.Host, r.Host)
 }
 
 // MessageType 消息类型

@@ -7,7 +7,7 @@ import (
 
 func TestGenerateAndParseToken(t *testing.T) {
 	InitJWT(&JWTConfig{
-		Secret:     "test-secret-key-123",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})
@@ -38,7 +38,7 @@ func TestGenerateAndParseToken(t *testing.T) {
 
 func TestParseInvalidToken(t *testing.T) {
 	InitJWT(&JWTConfig{
-		Secret:     "test-secret-key-123",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})
@@ -51,7 +51,7 @@ func TestParseInvalidToken(t *testing.T) {
 
 func TestExpiredToken(t *testing.T) {
 	InitJWT(&JWTConfig{
-		Secret:     "test-secret-key-123",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: -1 * time.Hour, // 已过期
 		Issuer:     "test",
 	})
@@ -69,7 +69,7 @@ func TestExpiredToken(t *testing.T) {
 
 func TestRefreshToken(t *testing.T) {
 	InitJWT(&JWTConfig{
-		Secret:     "test-secret-key-123",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})
@@ -106,7 +106,7 @@ func TestGenerateTokenWithoutConfig(t *testing.T) {
 
 func TestGenerateTokenWithoutRole(t *testing.T) {
 	InitJWT(&JWTConfig{
-		Secret:     "test-secret-key-123",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})

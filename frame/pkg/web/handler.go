@@ -63,13 +63,21 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 
 		results := method.Func.Call(args)
 
+		// 若业务层已通过 Abort 写入响应（如中间件/授权失败返回 4xx），
+		// 不再覆盖响应，避免双重写入。
+		if c.IsAborted() {
+			return
+		}
+
 		if len(results) > 0 {
 			lastResult := results[len(results)-1]
 			if lastResult.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 				if err, _ := lastResult.Interface().(error); err != nil {
+					// 记录完整错误日志，但不向客户端透传内部错误细节（防信息泄露）
+					fmt.Printf("handler %s.%s returned error: %v\n", instanceValue.Type(), method.Name, err)
 					c.JSON(500, gin.H{
 						"code":    50000,
-						"message": err.Error(),
+						"message": "internal server error",
 					})
 					return
 				}

@@ -1,6 +1,6 @@
 .PHONY: all test lint build clean fmt vet coverage tidy help
 
-MODULES = log tools api frame workflow
+MODULES = log tools api frame workflow saas
 ROOT_DIR = $(shell pwd)
 
 all: fmt vet test build

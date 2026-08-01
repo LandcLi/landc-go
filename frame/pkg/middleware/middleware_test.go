@@ -117,7 +117,7 @@ func TestCORSMiddleware(t *testing.T) {
 
 func TestAuthMiddleware(t *testing.T) {
 	auth.InitJWT(&auth.JWTConfig{
-		Secret:     "test-secret",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})
@@ -165,7 +165,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 func TestRoleRequiredMiddleware(t *testing.T) {
 	auth.InitJWT(&auth.JWTConfig{
-		Secret:     "test-secret",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})

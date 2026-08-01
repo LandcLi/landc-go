@@ -80,15 +80,38 @@ func Recovery() gin.HandlerFunc {
 }
 
 // CORS 跨域中间件
+// 注意：当未指定 allowOrigins 时默认允许所有来源，此时不会设置
+// Access-Control-Allow-Credentials（浏览器规范禁止 "*" 与凭据共存）。
+// 如需携带凭据，必须显式传入具体的来源列表。
 func CORS(allowOrigins ...string) gin.HandlerFunc {
-	origin := "*"
-	if len(allowOrigins) > 0 {
-		origin = strings.Join(allowOrigins, ",")
+	allowCredentials := len(allowOrigins) > 0
+	allowAll := !allowCredentials
+	originSet := make(map[string]bool, len(allowOrigins))
+	for _, o := range allowOrigins {
+		originSet[o] = true
 	}
 
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Credentials", "true")
+		reqOrigin := c.GetHeader("Origin")
+
+		switch {
+		case allowAll:
+			// 允许所有来源（无凭据）
+			c.Header("Access-Control-Allow-Origin", "*")
+		case reqOrigin != "" && originSet[reqOrigin]:
+			// 显式配置的来源：精确回显并允许凭据
+			c.Header("Access-Control-Allow-Origin", reqOrigin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+		default:
+			// 未匹配的来源：不设置 CORS 头（浏览器将阻止跨域响应）
+			if c.Request.Method == http.MethodOptions {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+			c.Next()
+			return
+		}
+
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Trace-ID, X-Request-ID")
 		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 		c.Header("Access-Control-Max-Age", "86400")

@@ -170,6 +170,15 @@ func LoadYAMLConfig(path string) (*Config, error) {
 }
 
 func DefaultConfig() *Config {
+	// 生产环境安全默认值：密钥优先从环境变量注入，避免硬编码
+	// 若环境变量也未设置，则留空并由 auth 层拒绝签发/解析 Token
+	jwtSecret := os.Getenv("LANDC_JWT_SECRET")
+
+	dsn := os.Getenv("LANDC_DB_DSN")
+	if dsn == "" {
+		dsn = "root:password@tcp(localhost:3306)/database?charset=utf8mb4&parseTime=True&loc=Local"
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Addr:             "0.0.0.0",
@@ -189,7 +198,7 @@ func DefaultConfig() *Config {
 		},
 		Database: DatabaseConfig{
 			Driver:          "mysql",
-			DSN:             "root:password@tcp(localhost:3306)/database?charset=utf8mb4&parseTime=True&loc=Local",
+			DSN:             dsn,
 			MaxOpenConns:    100,
 			MaxIdleConns:    10,
 			ConnMaxLifetime: 3600,
@@ -209,7 +218,7 @@ func DefaultConfig() *Config {
 			MaxAge:     28,
 		},
 		JWT: JWTConfig{
-			Secret:     "change-me",
+			Secret:     jwtSecret,
 			ExpireTime: "2h",
 			Issuer:     "app",
 		},

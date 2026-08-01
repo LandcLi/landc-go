@@ -79,6 +79,9 @@ func (ec *ExecutionContext) GetNodeValue(nodeID string) interface{} {
 // 默认返回所有上游节点输出的合并（key=上游节点ID），
 // 当节点配置了 InputMapping 时按映射规则提取指定上游输出。
 func (ec *ExecutionContext) GetInput(node *model.Node) json.RawMessage {
+	ec.mu.RLock()
+	defer ec.mu.RUnlock()
+
 	// 优先使用 InputMapping（显式控制）
 	if node.InputMapping != nil && len(node.InputMapping) > 0 {
 		var mapping map[string]string
@@ -134,6 +137,9 @@ var variableRefRE = regexp.MustCompile(`\{\{([^}]+)\}\}`)
 //   - {{nodeID.field}}        — 节点输出的 JSON 子字段
 //   - {{nodeID.0.field}}      — JSON 数组元素的字段
 func (ec *ExecutionContext) ResolveTemplate(template string) string {
+	ec.mu.RLock()
+	defer ec.mu.RUnlock()
+
 	return variableRefRE.ReplaceAllStringFunc(template, func(match string) string {
 		path := match[2 : len(match)-2]
 		parts := strings.SplitN(path, ".", 2)
@@ -231,7 +237,9 @@ func (ec *ExecutionContext) RecordTrace(nodeID, nodeType, nodeName string, input
 	if err != nil {
 		trace.Error = err.Error()
 	}
+	ec.mu.Lock()
 	ec.Traces = append(ec.Traces, trace)
+	ec.mu.Unlock()
 }
 
 // Close 关闭事件通道

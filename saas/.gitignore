@@ -13,6 +13,7 @@
 
 # Go workspace file
 go.work
+go.work.sum
 
 # Dependency directories
 vendor/
@@ -30,4 +31,3 @@ Thumbs.db
 
 # Build artifacts
 /bin/
-/pkg/

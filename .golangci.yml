@@ -16,6 +16,8 @@ linters:
     - gosimple     # Simplify code
     - bodyclose    # Check that HTTP response body is closed
     - gocritic     # Provide diagnostics for common mistakes
+    - gosec        # Security problems (SQL injection, command injection, etc.)
+    - gocyclo      # Cyclomatic complexity
   disable:
     - deadcode     # Deprecated (replaced by unused)
     - structcheck  # Deprecated (replaced by unused)
@@ -37,6 +39,8 @@ linters-settings:
       - hugeParam
   misspell:
     locale: US
+  gocyclo:
+    min-complexity: 20
 
 issues:
   exclude-rules:
@@ -48,5 +52,9 @@ issues:
     - path: examples/
       linters:
         - errcheck
+    # cmd/shell.go 的设计意图是执行 shell 命令，属于显式提供的功能而非注入
+    - path: pkg/cmd/shell\.go
+      linters:
+        - gosec
   max-issues-per-linter: 0
   max-same-issues: 0

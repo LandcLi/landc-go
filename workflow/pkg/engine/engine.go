@@ -535,6 +535,10 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(dag.workflow.Nodes))
 
+	// completedNodes 与 taskMap 被多个 executeNode goroutine 并发访问，必须使用共享锁保护
+	completedMu := &sync.Mutex{}
+	taskMu := &sync.Mutex{}
+
 	// 初始化暂停信号通道
 	e.initPauseSignal(execID)
 
@@ -572,7 +576,7 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 		go func(n *model.Node) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			e.executeNode(ec, dag, n, completedNodes, taskMap, errCh)
+			e.executeNode(ec, dag, n, completedNodes, completedMu, taskMap, taskMu, errCh)
 		}(node)
 	}
 	wg.Wait()
@@ -642,7 +646,7 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 			go func() {
 				defer batchWG.Done()
 				defer func() { <-sem }()
-				e.executeNode(ec, dag, n, completedNodes, taskMap, errCh)
+				e.executeNode(ec, dag, n, completedNodes, completedMu, taskMap, taskMu, errCh)
 			}()
 		}
 		batchWG.Wait()
@@ -660,7 +664,7 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 }
 
 // executeNode 执行单个节点，支持：条件分支、skip_on_failure、调试断点、事件推送
-func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.Node, completedNodes map[string]bool, taskMap map[string]*model.Task, errCh chan<- error) {
+func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.Node, completedNodes map[string]bool, completedMu *sync.Mutex, taskMap map[string]*model.Task, taskMu *sync.Mutex, errCh chan<- error) {
 	ctx := ec.Context
 	ctx, span := trace.NewSpan(ctx, "workflow.node."+node.Name)
 	defer span.End()
@@ -686,15 +690,17 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 		evtCh <- model.NewWorkflowEvent("node.started", ec.Execution.ID, node.ID, node.Name, string(node.Type), "")
 	}
 
-	// 获取或创建任务
+	// 获取或创建任务（taskMap 并发访问需加锁）
+	taskMu.Lock()
 	task, ok := taskMap[node.ID]
 	if ok && task.IsFinal() {
-		mu := &sync.Mutex{}
-		mu.Lock()
+		completedMu.Lock()
 		completedNodes[node.ID] = true
-		mu.Unlock()
+		completedMu.Unlock()
+		taskMu.Unlock()
 		return
 	}
+	taskMu.Unlock()
 
 	if !ok {
 		task = &model.Task{
@@ -713,7 +719,9 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 			errCh <- fmt.Errorf("create task %s failed: %w", node.Name, err)
 			return
 		}
+		taskMu.Lock()
 		taskMap[node.ID] = task
+		taskMu.Unlock()
 	}
 
 	// 更新为运行中
@@ -729,7 +737,7 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 	if execImpl == nil {
 		err := fmt.Errorf("no executor for type: %s", node.Type)
 		span.EndWithError(err)
-		e.handleNodeFailure(ec, task, node, err, completedNodes, errCh)
+		e.handleNodeFailure(ec, task, node, err, completedNodes, completedMu, errCh)
 		return
 	}
 
@@ -799,10 +807,9 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 			// 设置占位输出
 			ec.SetNodeOutput(node.ID, json.RawMessage(fmt.Sprintf(`{"skipped":true,"reason":"%s"}`, err.Error())))
 
-			mu := &sync.Mutex{}
-			mu.Lock()
+			completedMu.Lock()
 			completedNodes[node.ID] = true
-			mu.Unlock()
+			completedMu.Unlock()
 
 			// 激活所有下游边（跳过节点继续向下）
 			for _, edge := range dag.GetDownstream(node.ID) {
@@ -811,7 +818,7 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 			return
 		}
 
-		e.handleNodeFailure(ec, task, node, err, completedNodes, errCh)
+		e.handleNodeFailure(ec, task, node, err, completedNodes, completedMu, errCh)
 		return
 	}
 
@@ -836,17 +843,16 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 	}
 
 	activatedEdges := dag.GetActivatedDownstream(node.ID, outputStr)
-	mu := &sync.Mutex{}
-	mu.Lock()
+	completedMu.Lock()
 	for _, edge := range activatedEdges {
 		_ = edge.TargetID // 入度已在 GetReadyNodes 中处理
 	}
 	completedNodes[node.ID] = true
-	mu.Unlock()
+	completedMu.Unlock()
 }
 
 // handleNodeFailure 处理节点执行失败
-func (e *Engine) handleNodeFailure(ec *ExecutionContext, task *model.Task, node *model.Node, err error, completedNodes map[string]bool, errCh chan<- error) {
+func (e *Engine) handleNodeFailure(ec *ExecutionContext, task *model.Task, node *model.Node, err error, completedNodes map[string]bool, completedMu *sync.Mutex, errCh chan<- error) {
 	task.Status = model.TaskStatusFailed
 	task.Error = err.Error()
 	_ = e.dbStore.UpdateTask(context.Background(), task)

@@ -57,6 +57,21 @@ func GetJWTConfig() *JWTConfig {
 	return globalJWTConfig
 }
 
+// minSecretLength JWT 密钥最小长度（防止弱密钥被暴力破解）
+const minSecretLength = 32
+
+// ValidateSecret 校验 JWT 密钥强度
+// 密钥必须非空且长度不少于 32 字符，否则拒绝签发/解析 Token
+func ValidateSecret(secret string) error {
+	if secret == "" {
+		return errors.New("JWT secret is not configured: set LANDC_JWT_SECRET environment variable or jwt.secret in config")
+	}
+	if len(secret) < minSecretLength {
+		return fmt.Errorf("JWT secret is too weak: expected at least %d characters, got %d", minSecretLength, len(secret))
+	}
+	return nil
+}
+
 // GenerateToken 生成 JWT Token（简化版）
 func GenerateToken(userID uint, username string, role ...string) (string, error) {
 	opt := GenerateTokenOption{}
@@ -71,6 +86,10 @@ func GenerateTokenWithOpts(userID uint, username string, opt GenerateTokenOption
 	cfg := GetJWTConfig()
 	if cfg == nil {
 		return "", errors.New("JWT config not initialized")
+	}
+
+	if err := ValidateSecret(cfg.Secret); err != nil {
+		return "", err
 	}
 
 	expire := opt.ExpireTime
@@ -104,6 +123,10 @@ func ParseToken(tokenString string) (*Claims, error) {
 	cfg := GetJWTConfig()
 	if cfg == nil {
 		return nil, errors.New("JWT config not initialized")
+	}
+
+	if err := ValidateSecret(cfg.Secret); err != nil {
+		return nil, err
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {

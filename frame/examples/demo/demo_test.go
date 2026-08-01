@@ -22,7 +22,7 @@ func setupTestRouter() *gin.Engine {
 		Server: config.ServerConfig{Port: 8080},
 	})
 	auth.InitJWT(&auth.JWTConfig{
-		Secret:     "test-secret",
+		Secret:     "test-secret-key-0123456789abcdef0123456789abcdef",
 		ExpireTime: 1 * time.Hour,
 		Issuer:     "test",
 	})

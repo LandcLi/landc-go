@@ -10,7 +10,22 @@ type (
 	Registry struct {
 		container *Container
 	}
+
+	// lazyHolder 懒加载单例容器，持有工厂函数，首次 resolve 时执行并缓存实例
+	lazyHolder struct {
+		once     sync.Once
+		instance interface{}
+		factory  func() interface{}
+	}
 )
+
+// resolve 执行工厂函数并返回单例实例（线程安全）
+func (h *lazyHolder) resolve() interface{} {
+	h.once.Do(func() {
+		h.instance = h.factory()
+	})
+	return h.instance
+}
 
 func NewRegistry(container *Container) *Registry {
 	if container == nil {
@@ -85,19 +100,13 @@ func RegisterLazySingleton[T any](name string, factory func() T, overwrite bool)
 		return fmt.Errorf("service %s already registered and overwrite is false", name)
 	}
 
-	var (
-		instance T
-		once     sync.Once
-	)
-
-	lazyFactory := func() T {
-		once.Do(func() {
-			instance = factory()
-		})
-		return instance
+	holder := &lazyHolder{
+		factory: func() interface{} {
+			return factory()
+		},
 	}
 
-	return Register(name, lazyFactory, overwrite)
+	return container.Register(name, holder, overwrite)
 }
 
 // CallMethod 通过反射调用实例的方法

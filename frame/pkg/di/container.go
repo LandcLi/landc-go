@@ -12,6 +12,11 @@ type (
 	}
 
 	Option func(*Container)
+
+	// lazySingleton 懒加载单例接口，Container.Get 时自动解包执行工厂函数
+	lazySingleton interface {
+		resolve() interface{}
+	}
 )
 
 var globalContainer *Container
@@ -73,6 +78,11 @@ func (c *Container) Get(name string) (interface{}, error) {
 	service, exists := c.services[name]
 	if !exists {
 		return nil, fmt.Errorf("service %s not found", name)
+	}
+
+	// 懒加载单例：首次获取时执行工厂函数，返回真实实例
+	if holder, ok := service.(lazySingleton); ok {
+		return holder.resolve(), nil
 	}
 
 	return service, nil

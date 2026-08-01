@@ -2,6 +2,8 @@ package db
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,8 +90,22 @@ func openDB(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// 生产环境默认 Warn 级别，避免输出全部 SQL 造成数据泄露与海量日志。
+	// 可通过环境变量 LANDC_DB_LOG_MODE 覆盖（可选值：silent|error|warn|info）
+	logMode := logger.Warn
+	switch strings.ToLower(os.Getenv("LANDC_DB_LOG_MODE")) {
+	case "silent":
+		logMode = logger.Silent
+	case "error":
+		logMode = logger.Error
+	case "warn":
+		logMode = logger.Warn
+	case "info":
+		logMode = logger.Info
+	}
+
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logMode),
 	}
 
 	db, err := gorm.Open(dialector, gormConfig)
