@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -70,6 +71,7 @@ func (c *StoreIdempotencyChecker) GenerateKey(parts ...string) string {
 // ============================================================
 
 type MemoryIdempotencyChecker struct {
+	mu    sync.RWMutex
 	store map[string]time.Time
 	ttl   time.Duration
 }
@@ -85,6 +87,8 @@ func NewMemoryIdempotencyChecker(ttl time.Duration) *MemoryIdempotencyChecker {
 }
 
 func (c *MemoryIdempotencyChecker) IsProcessed(_ context.Context, idempotencyKey string) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	expires, ok := c.store[idempotencyKey]
 	if !ok || time.Now().After(expires) {
 		delete(c.store, idempotencyKey)
@@ -97,7 +101,9 @@ func (c *MemoryIdempotencyChecker) MarkProcessed(_ context.Context, idempotencyK
 	if ttl == 0 {
 		ttl = c.ttl
 	}
+	c.mu.Lock()
 	c.store[idempotencyKey] = time.Now().Add(ttl)
+	c.mu.Unlock()
 	return nil
 }
 

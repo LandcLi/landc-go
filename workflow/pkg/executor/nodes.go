@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/LandcLi/landc-go/workflow/pkg/model"
+	"github.com/dop251/goja"
 )
 
 // ============================================================
@@ -79,9 +80,9 @@ func (e *ConditionNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) 
 		// 模式 A: 从 JSON 输入中提取指定字段进行判断
 		result = evaluateJSONField(inputRaw, &cfg)
 	} else if cfg.Expression != "" {
-		// 模式 B: 预留表达式引擎
-		result = inputRaw != ""
-		_ = cfg.Expression
+		// 模式 B: JS 布尔表达式（基于 goja），input 对象以变量 `input` 注入
+		// 示例：input.score > 60 && input.status == "active"
+		result = evaluateConditionExpression(inputRaw, cfg.Expression)
 	} else {
 		// 模式 C: 判断整个输入
 		// 先尝试解析 JSON，如果 input 本身就是 JSON 结构，根据语义判断
@@ -98,6 +99,26 @@ func (e *ConditionNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) 
 func (e *ConditionNodeExecutor) Type() string { return string(model.NodeTypeCondition) }
 func (e *ConditionNodeExecutor) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"branch":{"type":"string","description":"true/false","enum":["true","false"]}}}`)
+}
+
+// evaluateConditionExpression 执行 JS 布尔表达式（注入 input 变量）
+// 表达式异常或求值失败时保守返回 false
+func evaluateConditionExpression(inputRaw, expression string) bool {
+	if strings.TrimSpace(expression) == "" {
+		return false
+	}
+	vm := goja.New()
+	if inputRaw != "" {
+		var input any
+		if err := json.Unmarshal([]byte(inputRaw), &input); err == nil {
+			_ = vm.Set("input", input)
+		}
+	}
+	res, err := vm.RunString(fmt.Sprintf("Boolean(%s)", expression))
+	if err != nil {
+		return false
+	}
+	return res.ToBoolean()
 }
 
 // evaluateJSONField 从 JSON 中提取字段做语义匹配
