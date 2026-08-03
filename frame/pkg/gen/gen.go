@@ -263,9 +263,9 @@ func toSnakeCase(s string) string {
 			if i > 0 {
 				result = append(result, '_')
 			}
-			result = append(result, byte(c+32))
+			result = append(result, byte(c-'A'+'a'))
 		} else {
-			result = append(result, byte(c))
+			result = append(result, string(c)...)
 		}
 	}
 	return string(result)

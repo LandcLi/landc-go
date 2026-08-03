@@ -173,7 +173,7 @@ func parseRoutesFromInterface[T any]() Routes {
 			reqType := methodType.In(1)
 
 			// Handle pointer type
-			if reqType.Kind() == reflect.Ptr {
+			if reqType.Kind() == reflect.Pointer {
 				reqType = reqType.Elem()
 			}
 
@@ -282,7 +282,7 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req, resp
 	// Dynamically resolve route from request struct's meta.Meta tag
 	reqValue := reflect.ValueOf(req)
 	reqType := reqValue.Type()
-	if reqType.Kind() == reflect.Ptr {
+	if reqType.Kind() == reflect.Pointer {
 		reqType = reqType.Elem()
 	}
 

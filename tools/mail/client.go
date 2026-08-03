@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/smtp"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -230,7 +231,7 @@ func (c *Client) send(email *Email) error {
 //nolint:gocyclo // POP3 协议状态机分支多，拆分收益低
 func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 	// 构建POP3服务器地址
-	addr := fmt.Sprintf("%s:%d", c.pop3Host, c.pop3Port)
+	addr := net.JoinHostPort(c.pop3Host, strconv.Itoa(c.pop3Port))
 
 	// 连接POP3服务器
 	conn, err := net.DialTimeout("tcp", addr, c.timeout)
@@ -345,7 +346,7 @@ func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 //nolint:gocyclo // IMAP 协议状态机分支多，拆分收益低
 func (c *Client) ReceiveIMAP(folder string, maxMessages int) ([]*Email, error) {
 	// 构建IMAP服务器地址
-	addr := fmt.Sprintf("%s:%d", c.imapHost, c.imapPort)
+	addr := net.JoinHostPort(c.imapHost, strconv.Itoa(c.imapPort))
 
 	// 连接IMAP服务器
 	conn, err := net.DialTimeout("tcp", addr, c.timeout)
@@ -472,7 +473,7 @@ func (c *Client) ReceiveIMAP(folder string, maxMessages int) ([]*Email, error) {
 // GetUnreadCountIMAP 获取未读邮件数量
 func (c *Client) GetUnreadCountIMAP(folder string) (int, error) {
 	// 构建IMAP服务器地址
-	addr := fmt.Sprintf("%s:%d", c.imapHost, c.imapPort)
+	addr := net.JoinHostPort(c.imapHost, strconv.Itoa(c.imapPort))
 
 	// 连接IMAP服务器
 	conn, err := net.DialTimeout("tcp", addr, c.timeout)
@@ -553,7 +554,7 @@ func (c *Client) GetUnreadCountIMAP(folder string) (int, error) {
 // DeleteMessagePOP3 通过POP3删除邮件
 func (c *Client) DeleteMessagePOP3(messageID int) error {
 	// 构建POP3服务器地址
-	addr := fmt.Sprintf("%s:%d", c.pop3Host, c.pop3Port)
+	addr := net.JoinHostPort(c.pop3Host, strconv.Itoa(c.pop3Port))
 
 	// 连接POP3服务器
 	conn, err := net.DialTimeout("tcp", addr, c.timeout)

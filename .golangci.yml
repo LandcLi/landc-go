@@ -1,67 +1,84 @@
-# See https://golangci-lint.run/usage/configuration/ for reference.
+version: "2"
 run:
-  timeout: 5m
   modules-download-mode: readonly
-
 linters:
+  default: none
   enable:
-    - gofmt        # Check whether code was gofmt'd
-    - govet        # Report suspicious constructs
-    - staticcheck  # Static analysis
-    - errcheck     # Check for unchecked errors
-    - ineffassign  # Detect ineffective assignments
-    - unused       # Check for unused constants/variables/functions/types
-    - misspell     # Find commonly misspelled English words
-    - whitespace   # Detection of leading/trailing whitespace
-    - gosimple     # Simplify code
-    - bodyclose    # Check that HTTP response body is closed
-    - gocritic     # Provide diagnostics for common mistakes
-    - gosec        # Security problems (SQL injection, command injection, etc.)
-    - gocyclo      # Cyclomatic complexity
-
-linters-settings:
-  gofmt:
-    simplify: true
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - ifElseChain
-      - hugeParam
-  misspell:
-    locale: US
-  gocyclo:
-    min-complexity: 20
-
+    - bodyclose
+    - gocritic
+    - gocyclo
+    - gosec
+    - misspell
+    - whitespace
+    - staticcheck
+    - govet
+    - errcheck
+    - ineffassign
+    - unused
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    gocritic:
+      disabled-checks:
+        - ifElseChain
+        - hugeParam
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gocyclo:
+      min-complexity: 20
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - staticcheck
+          - unused
+        path: _test\.go
+      - linters:
+          - gosec
+        path: _test\.go
+      - linters:
+          - errcheck
+          - gosec
+        path: examples/
+      - linters:
+          - errcheck
+        path: example/
+      - linters:
+          - gosec
+        path: pkg/cmd/shell\.go
+      - linters:
+          - gosec
+        path: str/string\.go
+      - linters:
+          - misspell
+        path: pkg/model/status\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosimple
-        - unused
-        - staticcheck # 测试中的防御性 nil 检查（err==nil 后解引用）为静态误报
-    - path: example/
-      linters:
-        - errcheck
-    # cmd/shell.go 的设计意图是执行 shell 命令，属于显式提供的功能而非注入
-    - path: pkg/cmd/shell\.go
-      linters:
-        - gosec
-    # tools/str/string.go 提供 MD5/SHA1/伪随机工具函数（非密码场景，如摘要/一致性/临时值），
-    # 属于工具库明确的设计定位；密码学场景使用者应选用 crypto 相关包
-    - path: str/string\.go
-      linters:
-        - gosec
-    # ExecutionStatusCancelled/TaskStatusCancelled 的枚举值 "CANCELLED"
-    # 是持久化到 DB 的契约，拼写保持与既有数据一致，不做 US 拼写修正
-    - path: pkg/model/status\.go
-      linters:
-        - misspell
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

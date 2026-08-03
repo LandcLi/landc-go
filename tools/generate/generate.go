@@ -117,7 +117,7 @@ func Captcha(length int) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		result[i] = byte('0' + n)
+		result[i] = '0' + uint8(n) //nolint:gosec // n ∈ [0,9]，结果为 ASCII 数字字节
 	}
 
 	return string(result), nil
@@ -168,7 +168,7 @@ func RandomIP() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		ip[i] = byte(n)
+		ip[i] = uint8(n) //nolint:gosec // n ∈ [0,255] 由 RandomInt 保证
 	}
 	return ip.String(), nil
 }
@@ -190,7 +190,7 @@ func RandomMAC() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		mac[i] = byte(n)
+		mac[i] = uint8(n) //nolint:gosec // n ∈ [0,255] 由 RandomInt 保证
 	}
 	// 设置本地管理位
 	mac[0] &= 0xFE

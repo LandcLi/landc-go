@@ -239,10 +239,10 @@ func TestServerConfig(t *testing.T) {
 	})
 
 	t.Run("Custom config", func(t *testing.T) {
-		config := &ServerConfig{
+		sc := &ServerConfig{
 			Addr: ":9090",
 		}
-		server := NewServer(config)
+		server := NewServer(sc)
 
 		if server.config.Addr != ":9090" {
 			t.Errorf("Expected custom addr :9090, got %s", server.config.Addr)

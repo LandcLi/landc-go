@@ -10,7 +10,7 @@ func Data(object interface{}) map[string]interface{} {
 	}
 
 	val := reflect.ValueOf(object)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 

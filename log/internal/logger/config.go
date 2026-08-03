@@ -171,6 +171,7 @@ func (c *LogConfig) ApplyDefaults() {
 }
 
 // Validate 验证配置的有效性，应用默认值并返回是否修正了字段
+//
 // Deprecated: 使用 ApplyDefaults() 代替，此方法保留向后兼容
 func (c *LogConfig) Validate() bool {
 	c.ApplyDefaults()

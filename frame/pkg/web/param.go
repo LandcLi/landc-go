@@ -24,7 +24,7 @@ func newLandcToolsValidator() *landcToolsValidator {
 
 func (v *landcToolsValidator) validateStruct(obj interface{}) error {
 	val := reflect.ValueOf(obj)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 
@@ -83,63 +83,63 @@ func (v *landcToolsValidator) validateWithLandcTools(field reflect.StructField, 
 func (v *landcToolsValidator) validateWithTag(t *tag.Tag, value interface{}) error {
 	switch t.Name {
 	case "required":
-		validator := &tag.RequiredValidator{}
-		return validator.Validate(value)
+		vd := &tag.RequiredValidator{}
+		return vd.Validate(value)
 	case "email":
-		validator := &tag.EmailValidator{}
-		return validator.Validate(value)
+		vd := &tag.EmailValidator{}
+		return vd.Validate(value)
 	case "phone":
-		validator := &tag.PhoneValidator{}
-		return validator.Validate(value)
+		vd := &tag.PhoneValidator{}
+		return vd.Validate(value)
 	case "phone-loose":
-		validator := &tag.PhoneLooseValidator{}
-		return validator.Validate(value)
+		vd := &tag.PhoneLooseValidator{}
+		return vd.Validate(value)
 	case "telephone":
-		validator := &tag.TelephoneValidator{}
-		return validator.Validate(value)
+		vd := &tag.TelephoneValidator{}
+		return vd.Validate(value)
 	case "password":
-		validator := &tag.PasswordValidator{}
-		return validator.Validate(value)
+		vd := &tag.PasswordValidator{}
+		return vd.Validate(value)
 	case "password2":
-		validator := &tag.Password2Validator{}
-		return validator.Validate(value)
+		vd := &tag.Password2Validator{}
+		return vd.Validate(value)
 	case "min":
 		if minVal, err := strconv.Atoi(t.Value); err == nil {
-			validator := &tag.MinValidator{Min: minVal}
-			return validator.Validate(value)
+			vd := &tag.MinValidator{Min: minVal}
+			return vd.Validate(value)
 		}
 	case "max":
 		if maxVal, err := strconv.Atoi(t.Value); err == nil {
-			validator := &tag.MaxValidator{Max: maxVal}
-			return validator.Validate(value)
+			vd := &tag.MaxValidator{Max: maxVal}
+			return vd.Validate(value)
 		}
 	case "length":
 		if length, err := strconv.Atoi(t.Value); err == nil {
-			validator := &tag.LengthValidator{Length: length}
-			return validator.Validate(value)
+			vd := &tag.LengthValidator{Length: length}
+			return vd.Validate(value)
 		}
 	case "pattern":
-		validator := &tag.PatternValidator{Pattern: t.Value}
-		return validator.Validate(value)
+		vd := &tag.PatternValidator{Pattern: t.Value}
+		return vd.Validate(value)
 	case "date":
-		validator := &tag.DateValidator{}
-		return validator.Validate(value)
+		vd := &tag.DateValidator{}
+		return vd.Validate(value)
 	case "datetime":
-		validator := &tag.DateTimeValidator{}
-		return validator.Validate(value)
+		vd := &tag.DateTimeValidator{}
+		return vd.Validate(value)
 	case "date-format":
-		validator := &tag.DateFormatValidator{Format: t.Value}
-		return validator.Validate(value)
+		vd := &tag.DateFormatValidator{Format: t.Value}
+		return vd.Validate(value)
 	case "array":
-		validator := &tag.ArrayValidator{}
-		return validator.Validate(value)
+		vd := &tag.ArrayValidator{}
+		return vd.Validate(value)
 	case "enum":
 		values := strings.Split(t.Value, ",")
-		validator := &tag.EnumsValidator{Values: values}
-		return validator.Validate(value)
+		vd := &tag.EnumsValidator{Values: values}
+		return vd.Validate(value)
 	case "format":
-		validator := &tag.FormatValidator{Format: t.Value}
-		return validator.Validate(value)
+		vd := &tag.FormatValidator{Format: t.Value}
+		return vd.Validate(value)
 	}
 
 	return nil
@@ -192,7 +192,7 @@ func parseParamMeta(field reflect.StructField) (*ParamMeta, error) {
 
 //nolint:gocyclo // 参数来源/类型分派分支多，拆分收益低
 func parseParamsFromContext(c *gin.Context, paramType reflect.Type) ([]reflect.Value, error) {
-	if paramType.Kind() == reflect.Ptr {
+	if paramType.Kind() == reflect.Pointer {
 		paramType = paramType.Elem()
 	}
 

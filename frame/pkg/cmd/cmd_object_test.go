@@ -86,25 +86,25 @@ func TestNewFromObject(t *testing.T) {
 	mainObj := &cMain{}
 
 	// 从对象创建命令
-	cmd, err := cmd.NewFromObject(mainObj)
+	c, err := cmd.NewFromObject(mainObj)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// 检查命令名称
-	if cmd.Name != "main" {
-		t.Errorf("Expected command name 'main', got '%s'", cmd.Name)
+	if c.Name != "main" {
+		t.Errorf("Expected command name 'main', got '%s'", c.Name)
 	}
 
 	// 检查命令简要描述
-	if cmd.Brief != "Main command" {
-		t.Errorf("Expected command brief 'Main command', got '%s'", cmd.Brief)
+	if c.Brief != "Main command" {
+		t.Errorf("Expected command brief 'Main command', got '%s'", c.Brief)
 	}
 
 	// 测试显示帮助信息，验证子命令是否被正确添加
 	os.Args = []string{"main"}
 	ctx := context.Background()
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -119,7 +119,7 @@ func TestCommandFromObjectRun(t *testing.T) {
 	mainObj := &cMain{}
 
 	// 从对象创建命令
-	cmd, err := cmd.NewFromObject(mainObj)
+	c, err := cmd.NewFromObject(mainObj)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -127,14 +127,14 @@ func TestCommandFromObjectRun(t *testing.T) {
 	// 测试运行 http 命令
 	os.Args = []string{"main", "http", "test-server", "--port=8080"}
 	ctx := context.Background()
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// 测试运行 grpc 命令
 	os.Args = []string{"main", "grpc", "test-server", "-p", "9090"}
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -149,7 +149,7 @@ func TestCommandFromObjectHelp(t *testing.T) {
 	mainObj := &cMain{}
 
 	// 从对象创建命令
-	cmd, err := cmd.NewFromObject(mainObj)
+	c, err := cmd.NewFromObject(mainObj)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -157,14 +157,14 @@ func TestCommandFromObjectHelp(t *testing.T) {
 	// 测试显示帮助信息
 	os.Args = []string{"main"}
 	ctx := context.Background()
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// 测试显示子命令帮助信息
 	os.Args = []string{"main", "http"}
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -175,25 +175,25 @@ func TestCommandFromObjectWithMetaField(t *testing.T) {
 	testObj := &cTest{}
 
 	// 从对象创建命令
-	cmd, err := cmd.NewFromObject(testObj)
+	c, err := cmd.NewFromObject(testObj)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// 检查命令名称
-	if cmd.Name != "test" {
-		t.Errorf("Expected command name 'test', got '%s'", cmd.Name)
+	if c.Name != "test" {
+		t.Errorf("Expected command name 'test', got '%s'", c.Name)
 	}
 
 	// 检查命令简要描述
-	if cmd.Brief != "Test command" {
-		t.Errorf("Expected command brief 'Test command', got '%s'", cmd.Brief)
+	if c.Brief != "Test command" {
+		t.Errorf("Expected command brief 'Test command', got '%s'", c.Brief)
 	}
 
 	// 测试运行 echo 命令
 	os.Args = []string{"test", "echo", "Hello", "--repeat=3"}
 	ctx := context.Background()
-	err = cmd.Run(ctx)
+	err = c.Run(ctx)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

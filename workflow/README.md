@@ -32,7 +32,7 @@
 
 ### 前置要求
 
-- Go 1.24+
+- Go 1.26+
 - landc-go 框架（`frame`, `log`, `tools`）
 - MySQL / PostgreSQL / SQLite（任一）
 - Redis（可选，用于分布式锁和幂等性增强）

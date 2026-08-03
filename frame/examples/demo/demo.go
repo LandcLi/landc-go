@@ -17,7 +17,7 @@ import (
 // Run 启动示例应用
 func Run() {
 	// 1. 初始化配置
-	config.InitGlobalConfigWithConfig(&config.Config{
+	if err := config.InitGlobalConfigWithConfig(&config.Config{
 		Server: config.ServerConfig{
 			Addr: "0.0.0.0",
 			Port: 8080,
@@ -27,7 +27,9 @@ func Run() {
 			Format: "text",
 			Output: "stdout",
 		},
-	})
+	}); err != nil {
+		panic("init config: " + err.Error())
+	}
 
 	// 2. 初始化 JWT
 	auth.InitJWT(&auth.JWTConfig{
@@ -89,13 +91,11 @@ func RegisterRoutes(r *gin.Engine) {
 	// 需要认证的路由
 	authorized := r.Group("/api/v1")
 	authorized.Use(middleware.Auth())
-	{
-		authorized.POST("/user/create", CreateUser)
-		authorized.GET("/user/get", GetUser)
-		authorized.PUT("/user/update", UpdateUser)
-		authorized.DELETE("/user/delete", DeleteUser)
-		authorized.GET("/user/list", ListUsers)
-	}
+	authorized.POST("/user/create", CreateUser)
+	authorized.GET("/user/get", GetUser)
+	authorized.PUT("/user/update", UpdateUser)
+	authorized.DELETE("/user/delete", DeleteUser)
+	authorized.GET("/user/list", ListUsers)
 }
 
 // ============ 启动入口 ============

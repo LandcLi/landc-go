@@ -106,7 +106,7 @@ func NewConvertError(field, message string, value interface{}) *ConvertError {
 // target 必须是指向结构体的指针
 func (c *Converter) ConvertTo(source, target interface{}) error {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr || targetValue.Elem().Kind() != reflect.Struct {
+	if targetValue.Kind() != reflect.Pointer || targetValue.Elem().Kind() != reflect.Struct {
 		return errors.New("target must be a pointer to struct")
 	}
 
@@ -120,7 +120,7 @@ func (c *Converter) ConvertTo(source, target interface{}) error {
 // target 必须是结构体类型（非指针）
 func (c *Converter) Convert(source, target interface{}) (interface{}, error) {
 	targetType := reflect.TypeOf(target)
-	if targetType.Kind() == reflect.Ptr {
+	if targetType.Kind() == reflect.Pointer {
 		targetType = targetType.Elem()
 	}
 
@@ -162,7 +162,7 @@ func (c *Converter) StructToStructNew(source, target interface{}) (interface{}, 
 // MapArrayToStructArray 将map数组转换为结构体数组
 func (c *Converter) MapArrayToStructArray(source []map[string]interface{}, target interface{}) error {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return errors.New("target must be a pointer to slice")
 	}
 
@@ -181,7 +181,7 @@ func (c *Converter) MapArrayToStructArray(source []map[string]interface{}, targe
 
 	for i, srcMap := range source {
 		elem := targetValue.Index(i)
-		if elem.Kind() == reflect.Ptr {
+		if elem.Kind() == reflect.Pointer {
 			if elem.IsNil() {
 				elem.Set(reflect.New(elem.Type().Elem()))
 			}
@@ -200,7 +200,7 @@ func (c *Converter) MapArrayToStructArray(source []map[string]interface{}, targe
 // MapArrayToStructArrayNew 将map数组转换为结构体数组（生成目标对象）
 func (c *Converter) MapArrayToStructArrayNew(source []map[string]interface{}, target interface{}) (interface{}, error) {
 	targetType := reflect.TypeOf(target)
-	if targetType.Kind() == reflect.Ptr {
+	if targetType.Kind() == reflect.Pointer {
 		targetType = targetType.Elem()
 	}
 
@@ -209,7 +209,7 @@ func (c *Converter) MapArrayToStructArrayNew(source []map[string]interface{}, ta
 	}
 
 	elemType := targetType.Elem()
-	if elemType.Kind() == reflect.Ptr {
+	if elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 
@@ -226,7 +226,7 @@ func (c *Converter) MapArrayToStructArrayNew(source []map[string]interface{}, ta
 			return nil, err
 		}
 		// 根据切片元素类型设置值
-		if targetType.Elem().Kind() == reflect.Ptr {
+		if targetType.Elem().Kind() == reflect.Pointer {
 			sliceValue.Index(i).Set(elem.Addr())
 		} else {
 			sliceValue.Index(i).Set(elem)
@@ -241,7 +241,7 @@ func (c *Converter) StructArrayToStructArray(source, target interface{}) error {
 	sourceValue := reflect.ValueOf(source)
 	targetValue := reflect.ValueOf(target)
 
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return errors.New("target must be a pointer to slice")
 	}
 
@@ -266,14 +266,14 @@ func (c *Converter) StructArrayToStructArray(source, target interface{}) error {
 		srcElem := sourceValue.Index(i)
 		tgtElem := targetValue.Index(i)
 
-		if tgtElem.Kind() == reflect.Ptr {
+		if tgtElem.Kind() == reflect.Pointer {
 			if tgtElem.IsNil() {
 				tgtElem.Set(reflect.New(tgtElem.Type().Elem()))
 			}
 			tgtElem = tgtElem.Elem()
 		}
 
-		if srcElem.Kind() == reflect.Ptr {
+		if srcElem.Kind() == reflect.Pointer {
 			if srcElem.IsNil() {
 				continue
 			}
@@ -294,7 +294,7 @@ func (c *Converter) StructArrayToStructArrayNew(source, target interface{}) (int
 	sourceValue := reflect.ValueOf(source)
 	targetType := reflect.TypeOf(target)
 
-	if targetType.Kind() == reflect.Ptr {
+	if targetType.Kind() == reflect.Pointer {
 		targetType = targetType.Elem()
 	}
 
@@ -303,7 +303,7 @@ func (c *Converter) StructArrayToStructArrayNew(source, target interface{}) (int
 	}
 
 	elemType := targetType.Elem()
-	if elemType.Kind() == reflect.Ptr {
+	if elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 
@@ -319,7 +319,7 @@ func (c *Converter) StructArrayToStructArrayNew(source, target interface{}) (int
 
 	for i := 0; i < sourceValue.Len(); i++ {
 		srcElem := sourceValue.Index(i)
-		if srcElem.Kind() == reflect.Ptr {
+		if srcElem.Kind() == reflect.Pointer {
 			if srcElem.IsNil() {
 				continue
 			}
@@ -332,7 +332,7 @@ func (c *Converter) StructArrayToStructArrayNew(source, target interface{}) (int
 			return nil, err
 		}
 		// 根据切片元素类型设置值
-		if targetType.Elem().Kind() == reflect.Ptr {
+		if targetType.Elem().Kind() == reflect.Pointer {
 			sliceValue.Index(i).Set(elem.Addr())
 		} else {
 			sliceValue.Index(i).Set(elem)
@@ -365,7 +365,7 @@ func (c *Converter) convertValue(source, target reflect.Value, parentField strin
 	}
 
 	// 如果源是nil且目标不是指针，跳过转换
-	if sourceKind == reflect.Ptr {
+	if sourceKind == reflect.Pointer {
 		if source.IsNil() {
 			return nil
 		}
@@ -378,7 +378,7 @@ func (c *Converter) convertValue(source, target reflect.Value, parentField strin
 		return c.convertToArray(source, target, parentField)
 	case reflect.Map:
 		return c.convertToMap(source, target, parentField)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return c.convertToPtr(source, target, parentField)
 	default:
 		return c.convertToBasic(source, target, parentField)
@@ -475,14 +475,14 @@ func (c *Converter) convertToArray(source, target reflect.Value, parentField str
 			srcElem = srcElem.Elem()
 		}
 
-		if tgtElem.Kind() == reflect.Ptr {
+		if tgtElem.Kind() == reflect.Pointer {
 			if tgtElem.IsNil() {
 				tgtElem.Set(reflect.New(tgtElem.Type().Elem()))
 			}
 			tgtElem = tgtElem.Elem()
 		}
 
-		if srcElem.Kind() == reflect.Ptr {
+		if srcElem.Kind() == reflect.Pointer {
 			if srcElem.IsNil() {
 				continue
 			}
@@ -920,7 +920,7 @@ func isEmpty(value reflect.Value) bool {
 		return !value.Bool()
 	case reflect.Slice, reflect.Array, reflect.Map:
 		return value.Len() == 0
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		return value.IsNil()
 	}
 
@@ -935,7 +935,7 @@ func isExported(name string) bool {
 // ValueOf 获取值的反射值
 func ValueOf(value interface{}) reflect.Value {
 	val := reflect.ValueOf(value)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		return val.Elem()
 	}
 	return val

@@ -37,13 +37,11 @@ func setupTestRouter() *gin.Engine {
 
 	authorized := r.Group("/api/v1")
 	authorized.Use(middleware.Auth())
-	{
-		authorized.POST("/user/create", CreateUser)
-		authorized.GET("/user/get", GetUser)
-		authorized.PUT("/user/update", UpdateUser)
-		authorized.DELETE("/user/delete", DeleteUser)
-		authorized.GET("/user/list", ListUsers)
-	}
+	authorized.POST("/user/create", CreateUser)
+	authorized.GET("/user/get", GetUser)
+	authorized.PUT("/user/update", UpdateUser)
+	authorized.DELETE("/user/delete", DeleteUser)
+	authorized.GET("/user/list", ListUsers)
 
 	return r
 }
@@ -119,7 +117,7 @@ func TestGetUser(t *testing.T) {
 	token := getAdminToken()
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/user/get?id=1", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/user/get?id=1", http.NoBody)
 	req.Header.Set("Authorization", "Bearer "+token)
 	r.ServeHTTP(w, req)
 
@@ -140,7 +138,7 @@ func TestListUsers(t *testing.T) {
 	token := getAdminToken()
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/user/list?page=1&page_size=10", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/user/list?page=1&page_size=10", http.NoBody)
 	req.Header.Set("Authorization", "Bearer "+token)
 	r.ServeHTTP(w, req)
 
@@ -160,7 +158,7 @@ func TestUnauthorizedAccess(t *testing.T) {
 	r := setupTestRouter()
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/user/get?id=1", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/user/get?id=1", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusUnauthorized {
@@ -182,7 +180,7 @@ func TestDeleteUser(t *testing.T) {
 
 	// 删除用户 ID=2
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("DELETE", "/api/v1/user/delete?id=2", nil)
+	req2, _ := http.NewRequest("DELETE", "/api/v1/user/delete?id=2", http.NoBody)
 	req2.Header.Set("Authorization", "Bearer "+token)
 	r.ServeHTTP(w2, req2)
 

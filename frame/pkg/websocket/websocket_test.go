@@ -478,7 +478,7 @@ func TestHub_Concurrent(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			conn := &Conn{
-				ID:    string(rune('A' + index)),
+				ID:    string('A' + rune(index)),
 				hub:   hub,
 				send:  make(chan []byte, 256),
 				rooms: make(map[string]bool),

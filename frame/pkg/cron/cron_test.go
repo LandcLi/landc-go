@@ -244,7 +244,7 @@ func TestTaskExecution_Concurrent(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			task := &Task{
-				Name: "concurrent_task_" + string(rune('A'+index)),
+				Name: "concurrent_task_" + string('A'+rune(index)),
 				Spec: "0 */1 * * * *",
 				Func: func(ctx context.Context) error {
 					return nil

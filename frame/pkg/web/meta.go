@@ -41,7 +41,7 @@ func parseMethodMeta(method reflect.Method) (*MethodMeta, error) {
 	}
 
 	paramType := methodType.In(paramIndex)
-	if paramType.Kind() == reflect.Ptr {
+	if paramType.Kind() == reflect.Pointer {
 		paramType = paramType.Elem()
 	}
 
@@ -78,7 +78,7 @@ func parseMethodMeta(method reflect.Method) (*MethodMeta, error) {
 
 func getGroupPath(instance interface{}) string {
 	instanceValue := reflect.ValueOf(instance)
-	if instanceValue.Kind() == reflect.Ptr {
+	if instanceValue.Kind() == reflect.Pointer {
 		instanceValue = instanceValue.Elem()
 	}
 

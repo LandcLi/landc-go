@@ -601,11 +601,11 @@ MIT License
 // ==================== go mod tidy ====================
 
 func runGoModTidy(projectPath string) error {
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = projectPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	c := exec.Command("go", "mod", "tidy")
+	c.Dir = projectPath
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
 }
 
 // ==================== git init ====================
@@ -615,9 +615,9 @@ func initGit(projectPath string) error {
 	if _, err := os.Stat(gitDir); err == nil {
 		return nil
 	}
-	cmd := exec.Command("git", "init")
-	cmd.Dir = projectPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	c := exec.Command("git", "init")
+	c.Dir = projectPath
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
 }

@@ -268,7 +268,7 @@ func (g *Generator) buildOperation(method reflect.Method, methodMeta *methodMeta
 
 	if methodType.NumIn() > paramIndex {
 		paramType := methodType.In(paramIndex)
-		if paramType.Kind() == reflect.Ptr {
+		if paramType.Kind() == reflect.Pointer {
 			paramType = paramType.Elem()
 		}
 		if paramType.Kind() == reflect.Struct {
@@ -279,7 +279,7 @@ func (g *Generator) buildOperation(method reflect.Method, methodMeta *methodMeta
 	// 解析返回值
 	if methodType.NumOut() > 0 {
 		outType := methodType.Out(0)
-		if outType.Kind() == reflect.Ptr {
+		if outType.Kind() == reflect.Pointer {
 			outType = outType.Elem()
 		}
 		if outType.Kind() == reflect.Struct {
@@ -402,7 +402,7 @@ func (g *Generator) fieldToSchema(field reflect.StructField) *Schema {
 }
 
 func (g *Generator) typeToSchema(t reflect.Type) *Schema {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -460,7 +460,7 @@ func (g *Generator) buildStructSchema(t reflect.Type) *Schema {
 }
 
 func (g *Generator) goTypeToSchema(t reflect.Type) *Schema {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -546,7 +546,7 @@ func parseMethodMetaForDoc(method reflect.Method) *methodMetaInfo {
 	}
 
 	paramType := methodType.In(paramIndex)
-	if paramType.Kind() == reflect.Ptr {
+	if paramType.Kind() == reflect.Pointer {
 		paramType = paramType.Elem()
 	}
 
@@ -580,7 +580,7 @@ func parseMethodMetaForDoc(method reflect.Method) *methodMetaInfo {
 
 func getGroupPath(instance interface{}) string {
 	instanceValue := reflect.ValueOf(instance)
-	if instanceValue.Kind() == reflect.Ptr {
+	if instanceValue.Kind() == reflect.Pointer {
 		instanceValue = instanceValue.Elem()
 	}
 	if instanceValue.Kind() != reflect.Struct {
@@ -603,7 +603,7 @@ func getGroupPath(instance interface{}) string {
 
 func getTagName(instance interface{}, groupPath string) string {
 	instanceValue := reflect.ValueOf(instance)
-	if instanceValue.Kind() == reflect.Ptr {
+	if instanceValue.Kind() == reflect.Pointer {
 		instanceValue = instanceValue.Elem()
 	}
 	if instanceValue.Kind() != reflect.Struct {

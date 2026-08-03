@@ -16,7 +16,7 @@ func NewFromObject(obj interface{}) (*Command, error) {
 	val := reflect.ValueOf(obj)
 
 	// 处理指针类型
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 		val = val.Elem()
 	}
@@ -91,7 +91,7 @@ func parseSubCommandsFromMethods(parent *Command, typ reflect.Type, val reflect.
 func parseCommandFromMethod(method reflect.Method, val reflect.Value) (*Command, error) {
 	// 获取方法输入参数类型
 	inputType := method.Type.In(2) // 第一个参数是接收者，第二个是上下文，第三个是输入参数
-	if inputType.Kind() == reflect.Ptr {
+	if inputType.Kind() == reflect.Pointer {
 		inputType = inputType.Elem()
 	}
 
@@ -173,14 +173,15 @@ func parseMetaFromStruct(typ reflect.Type, val reflect.Value) (map[string]string
 				metaFieldVal := fieldVal.Field(j)
 
 				// 解析标签
-				if metaField.Name == "Name" {
+				switch metaField.Name {
+				case "Name":
 					tagValue := tag.GetTagValue(metaField, "name")
 					if tagValue != "" {
 						meta["name"] = tagValue
 					} else if metaFieldVal.IsValid() && metaFieldVal.Kind() == reflect.String {
 						meta["name"] = metaFieldVal.String()
 					}
-				} else if metaField.Name == "Brief" {
+				case "Brief":
 					tagValue := tag.GetTagValue(metaField, "brief")
 					if tagValue != "" {
 						meta["brief"] = tagValue
@@ -343,7 +344,7 @@ func isValidCommandMethod(methodType reflect.Type) bool {
 
 	// 检查第三个参数是否是结构体指针
 	inputType := methodType.In(2)
-	if inputType.Kind() != reflect.Ptr {
+	if inputType.Kind() != reflect.Pointer {
 		return false
 	}
 	inputType = inputType.Elem()

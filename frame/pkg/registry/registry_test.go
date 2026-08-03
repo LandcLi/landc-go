@@ -534,7 +534,7 @@ func TestRegistry_Concurrent(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			instance := &ServiceInstance{
-				ID:      string(rune('A' + index)),
+				ID:      string('A' + rune(index)),
 				Name:    "concurrent-service",
 				Address: "127.0.0.1",
 				Port:    8080 + index,

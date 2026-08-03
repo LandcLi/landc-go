@@ -15,6 +15,9 @@
 
 ### 安全
 
+- **Go 1.24 → 1.26 升级（go 1.24 已于 2026-02 停止安全支持）**：统一所有 go.mod/go.work 的 `go` 指令为 `1.26`，修复标准库（crypto/tls、x509、net 等 8 项）与依赖漏洞
+- **修复依赖漏洞**（govulncheck v1.6.0 全模块 0 漏洞）：grpc v1.72.0 → v1.82.1（GO-2026-6061，xDS RBAC/HTTP2）、`golang.org/x/text` → v0.39.0（GO-2026-5970，norm 无限循环 DoS）、pgx v5.6.0 → v5.9.2、quic-go v0.54.0 → v0.59.1、`golang.org/x/sys` → v0.46.0
+- **golangci-lint v1.64.8 → v2.12.2**：配置文件迁移至 v2 格式（`linters.default: none` 保持白名单语义）；修复 v2 新增检查 60+ 处（importShadow/reflect.Pointer/QF10xx/SA1019/ST1005/G115/hostport 等）
 - **修复**：`saas.RevokeAccess` 越权漏洞——撤销共享前校验当前租户为数据 owner，非 owner 撤销被拒绝
 - **修复**：workflow HTTP 节点 SSRF——默认拒绝内网/保留地址目标，可通过 `allow_private_network` 显式开启
 - 升级 `google.golang.org/grpc` v1.62.2 → v1.83.0（安全敏感组件）

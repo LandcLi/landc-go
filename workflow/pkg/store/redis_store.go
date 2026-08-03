@@ -72,5 +72,5 @@ func (s *RedisStore) IsWorkerAlive(ctx context.Context, workerID string) (bool, 
 func (s *RedisStore) IncrCounter(ctx context.Context, name string) (int64, error) {
 	// frame/pkg/cache 不直接提供 Incr, 需要降级到本地处理
 	// 实际使用时可从 cache.GetRedis() 获取原生 Redis 客户端
-	return 0, fmt.Errorf("Incr not supported via Cache interface, use raw Redis")
+	return 0, fmt.Errorf("incr not supported via Cache interface, use raw Redis")
 }

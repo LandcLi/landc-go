@@ -111,9 +111,10 @@ func (g *DAGGraph) GetActivatedDownstream(nodeID, nodeOutput string) []*EdgeInfo
 	var defaultEdges []*EdgeInfo
 
 	for _, e := range allEdges {
-		if e.SourcePort == nodeOutput || e.SourcePort == "" {
+		switch e.SourcePort {
+		case nodeOutput, "":
 			activated = append(activated, e)
-		} else if e.SourcePort == "default" {
+		case "default":
 			defaultEdges = append(defaultEdges, e)
 		}
 	}
