@@ -45,24 +45,32 @@ func GetTenantChildren(db *gorm.DB, tenantID uint64) ([]model.Tenant, error) {
 // GetTenantTree 获取租户树结构
 func GetTenantTree(db *gorm.DB, rootID *uint64) ([]map[string]interface{}, error) {
 	var tenants []model.Tenant
-	query := db.Order("level ASC, id ASC")
 
 	if rootID == nil {
-		// 获取所有根租户
-		query = query.Where("parent_id IS NULL")
-	} else {
-		// 获取指定租户及其所有子租户
-		var root model.Tenant
-		if err := db.First(&root, *rootID).Error; err != nil {
+		// 获取全部租户（buildTree 以 parent_id IS NULL 为根递归构建）
+		if err := db.Model(&model.Tenant{}).
+			Order("level ASC, id ASC").
+			Find(&tenants).Error; err != nil {
 			return nil, err
 		}
-		query = query.Where("path LIKE ?", root.Path+"%")
+		return buildTree(tenants, nil), nil
 	}
 
-	query.Find(&tenants)
+	// 获取指定租户及其所有子租户
+	var root model.Tenant
+	if err := db.First(&root, *rootID).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Model(&model.Tenant{}).
+		Order("level ASC, id ASC").
+		Where("path LIKE ?", root.Path+"%").
+		Find(&tenants).Error; err != nil {
+		return nil, err
+	}
 
-	// 构建树结构
-	return buildTree(tenants, nil), nil
+	// 子树场景：顶层节点为 root 自身，其父不在结果集内，
+	// 因此以 root.ParentID 作为顶层匹配（只有 root 命中），递归构建子树
+	return buildTree(tenants, root.ParentID), nil
 }
 
 // buildTree 构建树结构（辅助函数）

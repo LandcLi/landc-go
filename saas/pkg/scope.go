@@ -68,8 +68,8 @@ func (m *Manager) TenantScopeWithAccess(ctx context.Context, dataType string, ac
 
 		query := m.db.Model(&model.DataAccess{}).
 			Select("data_id").
-			Where("data_type = ? AND tenant_id = ? AND (expire_at IS NULL OR expire_at > NOW())",
-				dataType, tenantID)
+			Where("data_type = ? AND tenant_id = ? AND (expire_at IS NULL OR expire_at > ?)",
+				dataType, tenantID, time.Now())
 
 		if len(accessLevel) > 0 {
 			query = query.Where("access_level IN ?", accessLevel)
