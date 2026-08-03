@@ -638,7 +638,11 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 
 		var batchWG sync.WaitGroup
 		for _, node := range readyNodes {
-			if completedNodes[node.ID] {
+			// 加锁读取：同一 batch 内已启动的 executeNode goroutine 可能并发写入 completedNodes
+			completedMu.Lock()
+			done := completedNodes[node.ID]
+			completedMu.Unlock()
+			if done {
 				continue
 			}
 			sem <- struct{}{}
