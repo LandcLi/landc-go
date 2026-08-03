@@ -1,16 +1,18 @@
 module github.com/LandcLi/landc-go/workflow
 
-go 1.24
+go 1.24.0
 
 toolchain go1.24.9
 
 require (
 	github.com/LandcLi/landc-go/frame v0.1.0
 	github.com/LandcLi/landc-go/log v0.1.0
+	github.com/LandcLi/landc-go/saas v0.1.0
 	github.com/LandcLi/landc-go/tools v0.1.0
 	github.com/dop251/goja v0.0.0-20240816181238-8130cadc5774
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.19.0
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )
 
@@ -85,7 +87,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
-	gorm.io/driver/sqlite v1.6.0 // indirect
 )
 
 replace (
@@ -94,3 +95,5 @@ replace (
 	github.com/LandcLi/landc-go/log v0.1.0 => ../log
 	github.com/LandcLi/landc-go/tools v0.1.0 => ../tools
 )
+
+replace github.com/LandcLi/landc-go/saas v0.1.0 => ../saas
