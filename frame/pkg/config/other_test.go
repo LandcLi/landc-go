@@ -19,7 +19,7 @@ func TestOther_JSONLoading(t *testing.T) {
 		"app_name": "my-app"
 	}`
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -72,7 +72,7 @@ email:
   port: 587
 `
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestOther_SetGetHasDelete(t *testing.T) {
 		t.Errorf("Expected GetOther('key1') = 'value1', got %v, %v", v, ok)
 	}
 
-	v, ok = config.GetOther("nonexistent")
+	_, ok = config.GetOther("nonexistent")
 	if ok {
 		t.Error("Expected GetOther('nonexistent') to return false")
 	}
@@ -257,7 +257,7 @@ func TestOther_NoCustomKeys(t *testing.T) {
 		"database": {"driver": "mysql", "dsn": "root@tcp(localhost)/db"}
 	}`
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}

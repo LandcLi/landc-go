@@ -315,10 +315,10 @@ func (e *Engine) GetExecutionTracing(ctx context.Context, execID string) ([]*mod
 
 	// 构建 nodeId → Tasks 的查找表
 	type taskInfo struct {
-		Status     string
-		ElapsedMs  int64
-		Output     interface{}
-		Error      string
+		Status    string
+		ElapsedMs int64
+		Output    interface{}
+		Error     string
 	}
 	nodeTasks := make(map[string]*taskInfo)
 	for _, t := range tasks {
@@ -328,7 +328,7 @@ func (e *Engine) GetExecutionTracing(ctx context.Context, execID string) ([]*mod
 		}
 		var output interface{}
 		if t.Output != nil {
-			json.Unmarshal(t.Output, &output)
+			_ = json.Unmarshal(t.Output, &output)
 		}
 		nodeTasks[t.NodeID] = &taskInfo{
 			Status:    string(t.Status),
@@ -528,6 +528,7 @@ func (e *Engine) executeWorkflow(ctx context.Context, exec *model.Execution, wf 
 	e.runningMu.Unlock()
 }
 
+//nolint:gocyclo // DAG 执行主循环（含暂停/恢复/并发批处理），拆分收益低
 func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes map[string]bool, taskMap map[string]*model.Task) error {
 	ctx := ec.Context
 	execID := ec.Execution.ID
@@ -620,11 +621,11 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 					if err != nil || exec.Status != model.ExecutionStatusPaused {
 						return
 					}
-					e.logger.WithContext(context.Background()).Warn("[engine] pause timeout, auto-cancelling",
+					e.logger.WithContext(context.Background()).Warn("[engine] pause timeout, auto-canceling",
 						facade.Field{Key: "execution_id", Value: execID},
 						facade.Field{Key: "pause_timeout", Value: e.config.PauseTimeout.String()},
 					)
-					e.CancelWorkflow(context.Background(), execID)
+					_ = e.CancelWorkflow(context.Background(), execID)
 				})
 			}
 			return nil
@@ -664,7 +665,7 @@ func (e *Engine) executeDAG(ec *ExecutionContext, dag *DAGGraph, completedNodes 
 }
 
 // executeNode 执行单个节点，支持：条件分支、skip_on_failure、调试断点、事件推送
-func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.Node, completedNodes map[string]bool, completedMu *sync.Mutex, taskMap map[string]*model.Task, taskMu *sync.Mutex, errCh chan<- error) {
+func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.Node, completedNodes map[string]bool, completedMu *sync.Mutex, taskMap map[string]*model.Task, taskMu *sync.Mutex, errCh chan<- error) { //nolint:gocyclo // 节点执行状态机分支多，拆分会破坏可读性
 	ctx := ec.Context
 	ctx, span := trace.NewSpan(ctx, "workflow.node."+node.Name)
 	defer span.End()
@@ -805,7 +806,7 @@ func (e *Engine) executeNode(ec *ExecutionContext, dag *DAGGraph, node *model.No
 			ec.EmitEvent("node.skipped", node.ID, node.Name, string(node.Type), err.Error())
 
 			// 设置占位输出
-			ec.SetNodeOutput(node.ID, json.RawMessage(fmt.Sprintf(`{"skipped":true,"reason":"%s"}`, err.Error())))
+			ec.SetNodeOutput(node.ID, json.RawMessage(fmt.Sprintf(`{"skipped":true,"reason":%q}`, err.Error())))
 
 			completedMu.Lock()
 			completedNodes[node.ID] = true
@@ -892,7 +893,7 @@ func (e *Engine) pushEvent(ec *ExecutionContext, eventType, nodeID, nodeName, no
 }
 
 // pushFinalEvent 推送最终事件并关闭事件通道（解决"事件通道永不关闭"问题）
-func (e *Engine) pushFinalEvent(execID string, eventType string) {
+func (e *Engine) pushFinalEvent(execID, eventType string) {
 	if evtCh := e.eventsForExec(execID); evtCh != nil {
 		select {
 		case evtCh <- model.NewWorkflowEvent(eventType, execID, "", "", "", ""):

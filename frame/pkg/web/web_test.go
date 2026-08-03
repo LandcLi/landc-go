@@ -98,7 +98,7 @@ func TestRegisterHandler(t *testing.T) {
 	router := server.Engine()
 
 	t.Run("Test with path and query params", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/test/123?name=test", nil)
+		req, _ := http.NewRequest("GET", "/test/123?name=test", http.NoBody)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -113,7 +113,7 @@ func TestRegisterHandler(t *testing.T) {
 	})
 
 	t.Run("Test no params", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/testnoparams", nil)
+		req, _ := http.NewRequest("GET", "/testnoparams", http.NoBody)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -131,7 +131,7 @@ func TestRegisterHandler(t *testing.T) {
 			t.Fatalf("Failed to register group handler: %v", err)
 		}
 
-		req, _ := http.NewRequest("GET", "/api/v1/item/999?name=GroupTest", nil)
+		req, _ := http.NewRequest("GET", "/api/v1/item/999?name=GroupTest", http.NoBody)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -155,7 +155,7 @@ func TestRegisterHandler(t *testing.T) {
 			t.Fatalf("Failed to register context handler: %v", err)
 		}
 
-		req, _ := http.NewRequest("GET", "/context/123", nil)
+		req, _ := http.NewRequest("GET", "/context/123", http.NoBody)
 		req.Header.Set("X-Custom-Header", "custom-value")
 		w := httptest.NewRecorder()
 
@@ -195,7 +195,7 @@ func TestParamParsing(t *testing.T) {
 	router := server.Engine()
 
 	t.Run("Parse path parameter", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/test/456?name=John", nil)
+		req, _ := http.NewRequest("GET", "/test/456?name=John", http.NoBody)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -212,7 +212,7 @@ func TestParamParsing(t *testing.T) {
 	})
 
 	t.Run("Parse query parameter", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/test/789?name=Alice", nil)
+		req, _ := http.NewRequest("GET", "/test/789?name=Alice", http.NoBody)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)

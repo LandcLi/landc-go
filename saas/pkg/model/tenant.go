@@ -10,7 +10,7 @@ import (
 type Tenant struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(100);not null;index:idx_name" json:"name"`
-	ParentID  *uint64   `gorm:"index:idx_parent" json:"parent_id"` // 父租户
+	ParentID  *uint64   `gorm:"index:idx_parent" json:"parent_id"`            // 父租户
 	Path      string    `gorm:"type:varchar(500);index:idx_path" json:"path"` // 物化路径: /1/3/5/
 	Level     int       `gorm:"default:1" json:"level"`
 	Status    int       `gorm:"not null;default:1" json:"status"` // 1=正常 2=禁用

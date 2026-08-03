@@ -67,7 +67,7 @@ func (t *traceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // Get 使用 DefaultClient 发送 GET 请求。
 func Get(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func Get(ctx context.Context, url string) (*http.Response, error) {
 // Post 使用 DefaultClient 发送 POST 请求（body 为 nil 时可传 nil）。
 func Post(ctx context.Context, url, contentType string, body interface{}) (*http.Response, error) {
 	// 简化实现，实际使用时建议用 req.Body
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

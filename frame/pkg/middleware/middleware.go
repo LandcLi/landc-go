@@ -11,8 +11,8 @@ import (
 	"github.com/LandcLi/landc-go/frame/pkg/auth"
 	"github.com/LandcLi/landc-go/frame/pkg/response"
 	"github.com/LandcLi/landc-go/frame/pkg/trace"
-	"github.com/LandcLi/landc-go/tools/generate"
 	"github.com/LandcLi/landc-go/log/facade"
+	"github.com/LandcLi/landc-go/tools/generate"
 	"github.com/gin-gonic/gin"
 )
 

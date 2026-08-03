@@ -86,7 +86,7 @@ func RunCommand(ctx context.Context, name string, args ...string) error {
 }
 
 // RunCommandWithEnv 执行命令，支持链路追踪上下文传递和环境变量
-func RunCommandWithEnv(ctx context.Context, name string, args []string, env []string) error {
+func RunCommandWithEnv(ctx context.Context, name string, args, env []string) error {
 	// 创建命令
 	cmd := exec.CommandContext(ctx, name, args...)
 
@@ -123,7 +123,7 @@ func RunCommandWithOutput(ctx context.Context, name string, args ...string) (str
 }
 
 // RunCommandWithOutputAndEnv 执行命令并返回输出，支持链路追踪上下文传递和环境变量
-func RunCommandWithOutputAndEnv(ctx context.Context, name string, args []string, env []string) (string, error) {
+func RunCommandWithOutputAndEnv(ctx context.Context, name string, args, env []string) (string, error) {
 	// 创建命令
 	cmd := exec.CommandContext(ctx, name, args...)
 
@@ -164,7 +164,7 @@ func InitTraceFromEnv(ctx context.Context) context.Context {
 }
 
 // ParseCommand 解析命令字符串为命令名和参数
-func ParseCommand(command string) (string, []string) {
+func ParseCommand(command string) (cmdName string, args []string) {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
 		return "", nil

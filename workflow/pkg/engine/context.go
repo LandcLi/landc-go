@@ -83,7 +83,7 @@ func (ec *ExecutionContext) GetInput(node *model.Node) json.RawMessage {
 	defer ec.mu.RUnlock()
 
 	// 优先使用 InputMapping（显式控制）
-	if node.InputMapping != nil && len(node.InputMapping) > 0 {
+	if len(node.InputMapping) > 0 {
 		var mapping map[string]string
 		if json.Unmarshal(node.InputMapping, &mapping) == nil {
 			result := make(map[string]json.RawMessage)

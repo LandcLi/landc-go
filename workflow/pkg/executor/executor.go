@@ -84,7 +84,7 @@ type LinearRetry struct {
 	MaxDelay   time.Duration
 }
 
-func (r *LinearRetry) NextDelay(_ int, _ time.Duration, _ time.Duration) time.Duration {
+func (r *LinearRetry) NextDelay(_ int, _, _ time.Duration) time.Duration {
 	return r.Delay
 }
 func (r *LinearRetry) MaxAttempts() int { return r.MaxRetries + 1 }
@@ -95,12 +95,12 @@ type ExponentialRetry struct {
 	MaxDelay   time.Duration
 }
 
-func (r *ExponentialRetry) NextDelay(attempt int, baseDelay time.Duration, _ time.Duration) time.Duration {
+func (r *ExponentialRetry) NextDelay(attempt int, baseDelay, _ time.Duration) time.Duration {
 	if r.BaseDelay > 0 {
 		baseDelay = r.BaseDelay
 	}
 	delay := float64(baseDelay) * math.Pow(2, float64(attempt-1))
-	jitter := rand.Float64() * 0.5 * delay
+	jitter := rand.Float64() * 0.5 * delay //nolint:gosec // 退避抖动非安全用途，无需加密随机
 	total := time.Duration(delay + jitter)
 	maxDelay := r.MaxDelay
 	if maxDelay == 0 {
@@ -184,7 +184,7 @@ func (e *RetryableExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*
 	}, lastErr
 }
 
-func (e *RetryableExecutor) Type() string { return e.inner.Type() }
+func (e *RetryableExecutor) Type() string            { return e.inner.Type() }
 func (e *RetryableExecutor) Schema() json.RawMessage { return e.inner.Schema() }
 
 // ============================================================
@@ -399,7 +399,7 @@ func (e *SubWorkflowExecutor) Execute(_ context.Context, req *ExecuteRequest) (*
 	}, nil
 }
 
-func (e *SubWorkflowExecutor) Type() string { return string(model.NodeTypeSubWorkflow) }
+func (e *SubWorkflowExecutor) Type() string            { return string(model.NodeTypeSubWorkflow) }
 func (e *SubWorkflowExecutor) Schema() json.RawMessage { return nil }
 
 // ============================================================
@@ -421,11 +421,13 @@ func (e *DelayExecutor) Execute(ctx context.Context, req *ExecuteRequest) (*Exec
 	}
 	select {
 	case <-ctx.Done():
-		return &ExecuteResponse{Success: false, Error: "cancelled"}, ctx.Err()
+		return &ExecuteResponse{Success: false, Error: "canceled"}, ctx.Err()
 	case <-time.After(time.Duration(cfg.Duration) * time.Second):
 	}
 	return &ExecuteResponse{Success: true, Output: req.Input}, nil
 }
 
 func (e *DelayExecutor) Type() string { return string(model.NodeTypeDelay) }
-func (e *DelayExecutor) Schema() json.RawMessage { return json.RawMessage(`{"type":"object","properties":{"output":{"type":"string","description":"原样传入"}}}`) }
+func (e *DelayExecutor) Schema() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"output":{"type":"string","description":"原样传入"}}}`)
+}

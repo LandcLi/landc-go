@@ -38,7 +38,7 @@ func TestGlobalCache_SetWithExpiration(t *testing.T) {
 
 	time.Sleep(150 * time.Millisecond)
 
-	value, found = cache.Get("key1")
+	_, found = cache.Get("key1")
 	if found {
 		t.Error("Expected key1 to be expired")
 	}
@@ -336,7 +336,7 @@ func TestGoroutineCache_SetWithExpiration(t *testing.T) {
 
 	time.Sleep(150 * time.Millisecond)
 
-	value, found = cache.Get("key1")
+	_, found = cache.Get("key1")
 	if found {
 		t.Error("Expected key1 to be expired")
 	}
@@ -606,7 +606,7 @@ func TestContextCache_SetWithExpiration(t *testing.T) {
 
 	time.Sleep(150 * time.Millisecond)
 
-	value, found = cache.Get("key1")
+	_, found = cache.Get("key1")
 	if found {
 		t.Error("Expected key1 to be expired")
 	}

@@ -195,11 +195,11 @@ const (
 )
 
 type circuitBreaker struct {
-	config    CircuitBreakerConfig
-	state     circuitBreakerState
-	failures  []time.Time
-	lastOpen  time.Time
-	mu        sync.Mutex
+	config   CircuitBreakerConfig
+	state    circuitBreakerState
+	failures []time.Time
+	lastOpen time.Time
+	mu       sync.Mutex
 }
 
 func newCircuitBreaker(config CircuitBreakerConfig) *circuitBreaker {

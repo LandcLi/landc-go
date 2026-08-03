@@ -66,7 +66,7 @@ func defaultCheckOrigin(r *http.Request) bool {
 	}
 
 	// 校验协议与 Host（防止跨协议攻击，如 https 站点到 http 的 WS）
-	expectedScheme := "https"
+	var expectedScheme string
 	if r.TLS != nil {
 		expectedScheme = "https"
 	} else {
@@ -232,6 +232,7 @@ func (h *Hub) Run() {
 	}
 }
 
+//nolint:gocyclo // Hub 主循环（注册/注销/广播/心跳/清理）分支多，拆分收益低
 func (h *Hub) run() {
 	for {
 		select {
@@ -420,9 +421,9 @@ func (h *Hub) readPump(conn *Conn) {
 	defer conn.Close()
 
 	conn.conn.SetReadLimit(h.MaxMessageSize)
-	conn.conn.SetReadDeadline(time.Now().Add(h.PongTimeout))
+	_ = conn.conn.SetReadDeadline(time.Now().Add(h.PongTimeout))
 	conn.conn.SetPongHandler(func(string) error {
-		conn.conn.SetReadDeadline(time.Now().Add(h.PongTimeout))
+		_ = conn.conn.SetReadDeadline(time.Now().Add(h.PongTimeout))
 		return nil
 	})
 
@@ -455,11 +456,11 @@ func (h *Hub) writePump(conn *Conn) {
 		select {
 		case msg, ok := <-conn.send:
 			if !ok {
-				conn.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = conn.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			conn.conn.SetWriteDeadline(time.Now().Add(h.WriteTimeout))
+			_ = conn.conn.SetWriteDeadline(time.Now().Add(h.WriteTimeout))
 			if err := conn.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				if h.onError != nil {
 					h.onError(conn, err)
@@ -468,7 +469,7 @@ func (h *Hub) writePump(conn *Conn) {
 			}
 
 		case <-ticker.C:
-			conn.conn.SetWriteDeadline(time.Now().Add(h.WriteTimeout))
+			_ = conn.conn.SetWriteDeadline(time.Now().Add(h.WriteTimeout))
 			if err := conn.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

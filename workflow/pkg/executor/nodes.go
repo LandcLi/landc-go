@@ -60,9 +60,9 @@ func NewConditionNodeExecutor() *ConditionNodeExecutor { return &ConditionNodeEx
 
 type conditionConfig struct {
 	Expression string `json:"expression"`
-	Field      string `json:"field"`       // JSON 输入的哪个字段用于判断
-	Operator   string `json:"operator"`    // equals / not_equals / contains / exists
-	Expected   string `json:"expected"`    // 期望值
+	Field      string `json:"field"`    // JSON 输入的哪个字段用于判断
+	Operator   string `json:"operator"` // equals / not_equals / contains / exists
+	Expected   string `json:"expected"` // 期望值
 }
 
 func (e *ConditionNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) (*ExecuteResponse, error) {
@@ -71,7 +71,7 @@ func (e *ConditionNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) 
 	// 解析节点配置
 	var cfg conditionConfig
 	if req.Config != nil {
-		json.Unmarshal(req.Config, &cfg)
+		_ = json.Unmarshal(req.Config, &cfg)
 	}
 
 	var result bool
@@ -221,15 +221,17 @@ type switchConfig struct {
 		Output string `json:"output"`
 	} `json:"cases"`
 	DefaultOutput    string `json:"default_output"`
-	InputField       string `json:"input_field"`        // 要匹配的 JSON 字段名
-	ExtractExtension bool   `json:"extract_extension"`  // 从文件名提取扩展名
-	CaseInsensitive  bool   `json:"case_insensitive"`   // 大小写不敏感
+	InputField       string `json:"input_field"`       // 要匹配的 JSON 字段名
+	ExtractExtension bool   `json:"extract_extension"` // 从文件名提取扩展名
+	CaseInsensitive  bool   `json:"case_insensitive"`  // 大小写不敏感
 }
 
 func (e *SwitchNodeExecutor) Execute(_ context.Context, req *ExecuteRequest) (*ExecuteResponse, error) {
 	var cfg switchConfig
 	if req.Config != nil {
-		json.Unmarshal(req.Config, &cfg)
+		if err := json.Unmarshal(req.Config, &cfg); err != nil {
+			return &ExecuteResponse{Success: false, Error: fmt.Sprintf("invalid config: %v", err)}, nil
+		}
 	}
 
 	// 1. 提取要匹配的值
@@ -322,7 +324,7 @@ func (e *HumanInputExecutor) Execute(ctx context.Context, req *ExecuteRequest) (
 
 	select {
 	case <-ctx.Done():
-		return &ExecuteResponse{Success: false, Error: "cancelled"}, ctx.Err()
+		return &ExecuteResponse{Success: false, Error: "canceled"}, ctx.Err()
 	case input := <-inputCh:
 		return &ExecuteResponse{Success: true, Output: json.RawMessage(input)}, nil
 	}

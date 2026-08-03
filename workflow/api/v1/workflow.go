@@ -15,14 +15,14 @@ type CreateWorkflowRequest struct {
 }
 
 type Node struct {
-	ID        string `json:"id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
-	Type      string `json:"type" binding:"required"`
-	Config    string `json:"config,omitempty"`
-	Timeout   int64  `json:"timeout,omitempty"`
-	MaxRetries int   `json:"max_retries,omitempty"`
-	RetryMode string `json:"retry_mode,omitempty"`
-	OrderNo   int    `json:"order_no"`
+	ID         string `json:"id" binding:"required"`
+	Name       string `json:"name" binding:"required"`
+	Type       string `json:"type" binding:"required"`
+	Config     string `json:"config,omitempty"`
+	Timeout    int64  `json:"timeout,omitempty"`
+	MaxRetries int    `json:"max_retries,omitempty"`
+	RetryMode  string `json:"retry_mode,omitempty"`
+	OrderNo    int    `json:"order_no"`
 }
 
 type Edge struct {
@@ -65,7 +65,7 @@ type ListWorkflowsRequest struct {
 }
 
 type ListWorkflowsResponse struct {
-	Total int64               `json:"total"`
+	Total int64                 `json:"total"`
 	Items []GetWorkflowResponse `json:"items"`
 }
 

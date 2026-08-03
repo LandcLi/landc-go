@@ -18,10 +18,6 @@ linters:
     - gocritic     # Provide diagnostics for common mistakes
     - gosec        # Security problems (SQL injection, command injection, etc.)
     - gocyclo      # Cyclomatic complexity
-  disable:
-    - deadcode     # Deprecated (replaced by unused)
-    - structcheck  # Deprecated (replaced by unused)
-    - varcheck     # Deprecated (replaced by unused)
 
 linters-settings:
   gofmt:
@@ -49,12 +45,23 @@ issues:
         - errcheck
         - gosimple
         - unused
-    - path: examples/
+        - staticcheck # 测试中的防御性 nil 检查（err==nil 后解引用）为静态误报
+    - path: example/
       linters:
         - errcheck
     # cmd/shell.go 的设计意图是执行 shell 命令，属于显式提供的功能而非注入
     - path: pkg/cmd/shell\.go
       linters:
         - gosec
+    # tools/str/string.go 提供 MD5/SHA1/伪随机工具函数（非密码场景，如摘要/一致性/临时值），
+    # 属于工具库明确的设计定位；密码学场景使用者应选用 crypto 相关包
+    - path: str/string\.go
+      linters:
+        - gosec
+    # ExecutionStatusCancelled/TaskStatusCancelled 的枚举值 "CANCELLED"
+    # 是持久化到 DB 的契约，拼写保持与既有数据一致，不做 US 拼写修正
+    - path: pkg/model/status\.go
+      linters:
+        - misspell
   max-issues-per-linter: 0
   max-same-issues: 0

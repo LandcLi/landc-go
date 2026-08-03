@@ -110,31 +110,31 @@ func queryByLocalDatabase(db *geoip2.Reader, ip string) (*IPInfo, error) {
 	}
 
 	var countryCode string
-	if len(record.Country.IsoCode) > 0 {
+	if record.Country.IsoCode != "" {
 		countryCode = record.Country.IsoCode
-	} else if len(record.RegisteredCountry.IsoCode) > 0 {
+	} else if record.RegisteredCountry.IsoCode != "" {
 		countryCode = record.RegisteredCountry.IsoCode
 	}
 
 	var countryName string
-	if len(record.Country.Names["zh-CN"]) > 0 {
+	if record.Country.Names["zh-CN"] != "" {
 		countryName = record.Country.Names["zh-CN"]
-	} else if len(record.Country.Names["en"]) > 0 {
+	} else if record.Country.Names["en"] != "" {
 		countryName = record.Country.Names["en"]
 	}
 
 	var cityName string
-	if len(record.City.Names["zh-CN"]) > 0 {
+	if record.City.Names["zh-CN"] != "" {
 		cityName = record.City.Names["zh-CN"]
-	} else if len(record.City.Names["en"]) > 0 {
+	} else if record.City.Names["en"] != "" {
 		cityName = record.City.Names["en"]
 	}
 
 	var subdivisionName string
 	if len(record.Subdivisions) > 0 {
-		if len(record.Subdivisions[0].Names["zh-CN"]) > 0 {
+		if record.Subdivisions[0].Names["zh-CN"] != "" {
 			subdivisionName = record.Subdivisions[0].Names["zh-CN"]
-		} else if len(record.Subdivisions[0].Names["en"]) > 0 {
+		} else if record.Subdivisions[0].Names["en"] != "" {
 			subdivisionName = record.Subdivisions[0].Names["en"]
 		}
 	}

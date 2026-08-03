@@ -3,6 +3,7 @@ package converter
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -565,7 +566,7 @@ func (c *Converter) getFieldName(name string) string {
 	}
 
 	// 将小写的字段名转换为大写开头的字段名
-	if len(name) > 0 {
+	if name != "" {
 		return strings.ToUpper(name[:1]) + name[1:]
 	}
 
@@ -591,7 +592,7 @@ func (c *Converter) findFieldByName(target reflect.Value, name string) reflect.V
 	}
 
 	// 尝试将小写的字段名转换为大写开头的字段名
-	if len(name) > 0 {
+	if name != "" {
 		upperName := strings.ToUpper(name[:1]) + name[1:]
 		field = target.FieldByName(upperName)
 		if field.IsValid() {
@@ -681,22 +682,24 @@ func (c *Converter) validateField(field reflect.StructField, value reflect.Value
 }
 
 // createValidator 创建验证器
+//
+//nolint:gocyclo // 验证器分派为线性 switch，拆分收益低
 func (c *Converter) createValidator(t *tag.Tag) (tag.Validator, error) {
 	switch t.Name {
 	case "required":
 		return tag.CreateRequiredValidator(), nil
 	case "min":
-		min, err := tag.ParseMin(t)
+		minValue, err := tag.ParseMin(t)
 		if err != nil {
 			return nil, err
 		}
-		return tag.CreateMinValidator(min), nil
+		return tag.CreateMinValidator(minValue), nil
 	case "max":
-		max, err := tag.ParseMax(t)
+		maxValue, err := tag.ParseMax(t)
 		if err != nil {
 			return nil, err
 		}
-		return tag.CreateMaxValidator(max), nil
+		return tag.CreateMaxValidator(maxValue), nil
 	case "length":
 		length, err := tag.ParseLength(t)
 		if err != nil {
@@ -742,12 +745,12 @@ func (c *Converter) createValidator(t *tag.Tag) (tag.Validator, error) {
 		if len(values) != 2 {
 			return nil, fmt.Errorf("between requires two values")
 		}
-		min, err1 := strconv.Atoi(values[0])
-		max, err2 := strconv.Atoi(values[1])
+		minVal, err1 := strconv.Atoi(values[0])
+		maxVal, err2 := strconv.Atoi(values[1])
 		if err1 != nil || err2 != nil {
 			return nil, fmt.Errorf("between requires numeric values")
 		}
-		return &tag.BetweenValidator{Min: min, Max: max}, nil
+		return &tag.BetweenValidator{Min: minVal, Max: maxVal}, nil
 	case "size":
 		size, err := strconv.Atoi(t.Value)
 		if err != nil {
@@ -760,6 +763,8 @@ func (c *Converter) createValidator(t *tag.Tag) (tag.Validator, error) {
 }
 
 // convertBasicType 转换基本类型
+//
+//nolint:gocyclo // 类型转换矩阵分支多，拆分会破坏完整性
 func convertBasicType(source reflect.Value, targetType reflect.Type) (reflect.Value, error) {
 	sourceType := source.Type()
 
@@ -817,7 +822,11 @@ func convertBasicType(source reflect.Value, targetType reflect.Type) (reflect.Va
 		case int, int8, int16, int32, int64:
 			return reflect.ValueOf(v).Convert(targetType), nil
 		case uint, uint8, uint16, uint32, uint64:
-			return reflect.ValueOf(int64(reflect.ValueOf(v).Uint())).Convert(targetType), nil
+			u := reflect.ValueOf(v).Uint()
+			if u > math.MaxInt64 {
+				return reflect.Value{}, errors.New("unsigned value overflows int64")
+			}
+			return reflect.ValueOf(int64(u)).Convert(targetType), nil
 		}
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:

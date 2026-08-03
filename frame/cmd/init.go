@@ -108,7 +108,7 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 
 	for _, dir := range dirs {
 		fullPath := filepath.Join(projectPath, dir)
-		if err := os.MkdirAll(fullPath, 0755); err != nil {
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
@@ -121,24 +121,24 @@ func createProjectStructure(projectPath, projectName, moduleName string, input *
 		{"internal/cmd/cmd.go", func(p, m string) error { return createCmdFile(p, moduleName) }},
 		{"go.mod", func(p, m string) error { return createGoMod(p, moduleName) }},
 		{".gitignore", func(p, _ string) error {
-			return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0644)
+			return os.WriteFile(filepath.Join(p, ".gitignore"), []byte(gitignoreContent), 0o600)
 		}},
 		{"config.yaml", func(p, _ string) error {
-			return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0644)
+			return os.WriteFile(filepath.Join(p, "config.yaml"), []byte(configYamlContent), 0o600)
 		}},
 		{"sqls/init.sql", func(p, _ string) error {
-			return os.WriteFile(filepath.Join(p, "sqls", "init.sql"), []byte(sqlInitContent), 0644)
+			return os.WriteFile(filepath.Join(p, "sqls", "init.sql"), []byte(sqlInitContent), 0o600)
 		}},
 
 		// routes are registered via meta.Meta tags, no routers.go needed
 		{"api/hello/hello.go", func(p, m string) error { return createHelloApi(p, moduleName) }},
 		{"api/hello/v1/say_hello.go", func(p, _ string) error {
-			return os.WriteFile(filepath.Join(p, "api/hello/v1", "say_hello.go"), []byte(sayHelloContent), 0644)
+			return os.WriteFile(filepath.Join(p, "api", "hello", "v1", "say_hello.go"), []byte(sayHelloContent), 0o600)
 		}},
 		{"service/hello.go", func(p, m string) error { return createServiceInterface(p, moduleName) }},
 		{"dao/hello.go", func(p, _ string) error { return createDaoInterface(p, moduleName) }},
 		{"model/hello.go", func(p, _ string) error {
-			return os.WriteFile(filepath.Join(p, "model/hello.go"), []byte(modelHelloContent), 0644)
+			return os.WriteFile(filepath.Join(p, "model", "hello.go"), []byte(modelHelloContent), 0o600)
 		}},
 		{"internal/impl.go", func(p, m string) error { return createInternalImpl(p, moduleName) }},
 		{"internal/controller/hello/hello.go", func(p, m string) error { return createControllerImpl(p, moduleName) }},
@@ -177,7 +177,7 @@ func main() {
 	cmd.Main.Run(context.Background())
 }
 `, moduleName, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "main.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "main.go"), []byte(content), 0o600)
 }
 
 func createCmdFile(projectPath, moduleName string) error {
@@ -201,7 +201,7 @@ var Main = cmd.NewCommand("main", "start HTTP server", func(ctx context.Context,
 	return server.RunWithContext(ctx)
 })
 `, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "internal/cmd/cmd.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "internal", "cmd", "cmd.go"), []byte(content), 0o600)
 }
 
 // ==================== go.mod ====================
@@ -213,7 +213,7 @@ go 1.24.0
 
 require github.com/LandcLi/landc-go/frame v0.0.0
 `, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "go.mod"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "go.mod"), []byte(content), 0o600)
 }
 
 // landcGoDir returns the absolute path to the directory containing the CLI's go.mod.
@@ -323,7 +323,7 @@ func RegisterHelloController(impl HelloController) {
 	HelloGateway.Provide(impl)
 }
 `, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "api/hello/hello.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "api", "hello", "hello.go"), []byte(content), 0o600)
 }
 
 // ==================== service/hello.go ====================
@@ -351,7 +351,7 @@ func RegisterHelloService(s HelloService) {
 	di.Provide[HelloService]("hello.service", s)
 }
 `, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "service/hello.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "service", "hello.go"), []byte(content), 0o600)
 }
 
 // ==================== dao/hello.go ====================
@@ -379,7 +379,7 @@ func RegisterHelloDao(impl HelloDao) {
 `
 
 func createDaoInterface(projectPath, _ string) error {
-	return os.WriteFile(filepath.Join(projectPath, "dao/hello.go"), []byte(daoHelloContent), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "dao", "hello.go"), []byte(daoHelloContent), 0o600)
 }
 
 // ==================== model/hello.go ====================
@@ -407,7 +407,7 @@ import (
 	_ "%s/internal/service_impl/hello"
 )
 `, moduleName, moduleName, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "internal/impl.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "internal", "impl.go"), []byte(content), 0o600)
 }
 
 // ==================== internal/controller/hello/hello.go ====================
@@ -433,7 +433,7 @@ func (c *helloController) SayHello(ctx context.Context, req *v1.SayHelloRequest)
 	return service.GetHelloService().SayHello(ctx, req)
 }
 `, moduleName, moduleName, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "internal/controller/hello/hello.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "internal", "controller", "hello", "hello.go"), []byte(content), 0o600)
 }
 
 // ==================== internal/service_impl/hello/hello.go ====================
@@ -463,7 +463,7 @@ func (s *helloServiceImpl) SayHello(ctx context.Context, req *v1.SayHelloRequest
 	return &v1.SayHelloResponse{Message: msg}, nil
 }
 `, moduleName, moduleName, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "internal/service_impl/hello/hello.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "internal", "service_impl", "hello", "hello.go"), []byte(content), 0o600)
 }
 
 // ==================== internal/dao_impl/hello/hello.go ====================
@@ -488,7 +488,7 @@ func (d *helloDaoImpl) SayHello(ctx context.Context, name string) (string, error
 	return fmt.Sprintf("Hello, %%s!", name), nil
 }
 `, moduleName)
-	return os.WriteFile(filepath.Join(projectPath, "internal/dao_impl/hello/hello.go"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "internal", "dao_impl", "hello", "hello.go"), []byte(content), 0o600)
 }
 
 // ==================== README.md ====================
@@ -595,7 +595,7 @@ ctrl := hello.HelloGateway.Get()  // same API as local
 
 MIT License
 `, projectName, projectName)
-	return os.WriteFile(filepath.Join(projectPath, "README.md"), []byte(content), 0644)
+	return os.WriteFile(filepath.Join(projectPath, "README.md"), []byte(content), 0o600)
 }
 
 // ==================== go mod tidy ====================

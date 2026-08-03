@@ -62,7 +62,7 @@ func GetLoggerWithName(name string) Logger {
 // name: 日志实例名称
 // provider: 日志提供者名称，如 "console"、"zap"、"logrus"、"std"
 // opts: 日志配置选项
-func GetLoggerWithProvider(name string, provider string, opts ...Option) Logger {
+func GetLoggerWithProvider(name, provider string, opts ...Option) Logger {
 	return logger.GetLoggerWithProvider(name, provider, opts...)
 }
 

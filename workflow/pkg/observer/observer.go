@@ -147,7 +147,7 @@ func (o *LogObserver) OnExecutionResumed(ctx context.Context, exec *model.Execut
 }
 
 func (o *LogObserver) OnExecutionCancelled(ctx context.Context, exec *model.Execution) {
-	o.log(ctx, facade.WarnLevel, "[wf] execution cancelled",
+	o.log(ctx, facade.WarnLevel, "[wf] execution canceled",
 		facade.Field{Key: "execution_id", Value: exec.ID},
 	)
 }
@@ -205,11 +205,11 @@ func (o *TraceObserver) OnExecutionStarted(ctx context.Context, exec *model.Exec
 	_ = exec
 }
 
-func (o *TraceObserver) OnExecutionCompleted(_ context.Context, _ *model.Execution, _ error) {}
-func (o *TraceObserver) OnExecutionPaused(_ context.Context, _ *model.Execution)             {}
-func (o *TraceObserver) OnExecutionResumed(_ context.Context, _ *model.Execution)            {}
-func (o *TraceObserver) OnExecutionCancelled(_ context.Context, _ *model.Execution)          {}
-func (o *TraceObserver) OnTaskStarted(_ context.Context, _ *model.Task, _ *model.Node)       {}
+func (o *TraceObserver) OnExecutionCompleted(_ context.Context, _ *model.Execution, _ error)      {}
+func (o *TraceObserver) OnExecutionPaused(_ context.Context, _ *model.Execution)                  {}
+func (o *TraceObserver) OnExecutionResumed(_ context.Context, _ *model.Execution)                 {}
+func (o *TraceObserver) OnExecutionCancelled(_ context.Context, _ *model.Execution)               {}
+func (o *TraceObserver) OnTaskStarted(_ context.Context, _ *model.Task, _ *model.Node)            {}
 func (o *TraceObserver) OnTaskCompleted(_ context.Context, _ *model.Task, _ *model.Node, _ error) {}
-func (o *TraceObserver) OnTaskRetrying(_ context.Context, _ *model.Task, _ int)              {}
-func (o *TraceObserver) OnTaskSkipped(_ context.Context, _ *model.Task, _ string)            {}
+func (o *TraceObserver) OnTaskRetrying(_ context.Context, _ *model.Task, _ int)                   {}
+func (o *TraceObserver) OnTaskSkipped(_ context.Context, _ *model.Task, _ string)                 {}

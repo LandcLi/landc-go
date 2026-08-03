@@ -178,10 +178,10 @@ func TestPEMFileLoading(t *testing.T) {
 	dir := t.TempDir()
 	privPath := filepath.Join(dir, "private.pem")
 	pubPath := filepath.Join(dir, "public.pem")
-	if err := os.WriteFile(privPath, privPEM, 0600); err != nil {
+	if err := os.WriteFile(privPath, privPEM, 0o600); err != nil {
 		t.Fatalf("write private key: %v", err)
 	}
-	if err := os.WriteFile(pubPath, pubPEM, 0644); err != nil {
+	if err := os.WriteFile(pubPath, pubPEM, 0o600); err != nil {
 		t.Fatalf("write public key: %v", err)
 	}
 

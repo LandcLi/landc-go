@@ -121,7 +121,7 @@ func (c *Command) RunWithArgs(ctx context.Context, args []string) error {
 				if c.EnableTrace {
 					ctx2, span := trace.NewSpan(ctx, subCmd.Name)
 					ctx = ctx2
-					defer span.End()
+					defer span.End() //nolint:gocritic // 匹配到子命令后必然 return，defer 不会累积
 				}
 
 				// 移除第一个参数（当前命令名）

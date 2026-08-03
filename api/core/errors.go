@@ -22,14 +22,14 @@ const (
 	ErrorCodeValidationFailed    ErrorCode = 42201
 
 	// 服务端错误 5xxxx
-	CodeError                       ErrorCode = 50000
-	ErrorCodeInternalServerError    ErrorCode = 50000
-	ErrorCodeDatabaseError          ErrorCode = 50001
-	ErrorCodeExternalAPIError       ErrorCode = 50002
-	ErrorCodeNotImplemented         ErrorCode = 50100
-	ErrorCodeBadGateway             ErrorCode = 50200
-	ErrorCodeServiceUnavailable     ErrorCode = 50300
-	ErrorCodeGatewayTimeout         ErrorCode = 50400
+	CodeError                    ErrorCode = 50000
+	ErrorCodeInternalServerError ErrorCode = 50000
+	ErrorCodeDatabaseError       ErrorCode = 50001
+	ErrorCodeExternalAPIError    ErrorCode = 50002
+	ErrorCodeNotImplemented      ErrorCode = 50100
+	ErrorCodeBadGateway          ErrorCode = 50200
+	ErrorCodeServiceUnavailable  ErrorCode = 50300
+	ErrorCodeGatewayTimeout      ErrorCode = 50400
 
 	// 自定义错误码范围
 	ErrorCodeCustomMin ErrorCode = 60000
@@ -138,19 +138,25 @@ func NewCustomErrorWithCause(code int, message string, cause error) (*Error, err
 
 // 预定义错误（使用函数返回副本，防止全局状态被意外修改）
 
-func ErrBadRequest() *Error     { return NewError(ErrorCodeBadRequest, "Bad Request") }
-func ErrUnauthorized() *Error   { return NewError(ErrorCodeUnauthorized, "Unauthorized") }
-func ErrForbidden() *Error      { return NewError(ErrorCodeForbidden, "Forbidden") }
-func ErrNotFound() *Error       { return NewError(ErrorCodeNotFound, "Not Found") }
+func ErrBadRequest() *Error       { return NewError(ErrorCodeBadRequest, "Bad Request") }
+func ErrUnauthorized() *Error     { return NewError(ErrorCodeUnauthorized, "Unauthorized") }
+func ErrForbidden() *Error        { return NewError(ErrorCodeForbidden, "Forbidden") }
+func ErrNotFound() *Error         { return NewError(ErrorCodeNotFound, "Not Found") }
 func ErrMethodNotAllowed() *Error { return NewError(ErrorCodeMethodNotAllowed, "Method Not Allowed") }
-func ErrConflict() *Error       { return NewError(ErrorCodeConflict, "Conflict") }
-func ErrUnprocessableEntity() *Error { return NewError(ErrorCodeUnprocessableEntity, "Unprocessable Entity") }
+func ErrConflict() *Error         { return NewError(ErrorCodeConflict, "Conflict") }
+func ErrUnprocessableEntity() *Error {
+	return NewError(ErrorCodeUnprocessableEntity, "Unprocessable Entity")
+}
 
-func ErrInternalServerError() *Error { return NewError(ErrorCodeInternalServerError, "Internal Server Error") }
-func ErrNotImplemented() *Error      { return NewError(ErrorCodeNotImplemented, "Not Implemented") }
-func ErrBadGateway() *Error          { return NewError(ErrorCodeBadGateway, "Bad Gateway") }
-func ErrServiceUnavailable() *Error  { return NewError(ErrorCodeServiceUnavailable, "Service Unavailable") }
-func ErrGatewayTimeout() *Error      { return NewError(ErrorCodeGatewayTimeout, "Gateway Timeout") }
+func ErrInternalServerError() *Error {
+	return NewError(ErrorCodeInternalServerError, "Internal Server Error")
+}
+func ErrNotImplemented() *Error { return NewError(ErrorCodeNotImplemented, "Not Implemented") }
+func ErrBadGateway() *Error     { return NewError(ErrorCodeBadGateway, "Bad Gateway") }
+func ErrServiceUnavailable() *Error {
+	return NewError(ErrorCodeServiceUnavailable, "Service Unavailable")
+}
+func ErrGatewayTimeout() *Error { return NewError(ErrorCodeGatewayTimeout, "Gateway Timeout") }
 
 func ErrValidationFailed() *Error { return NewError(ErrorCodeValidationFailed, "Validation Failed") }
 func ErrInvalidParams() *Error    { return NewError(ErrorCodeInvalidParams, "Invalid Parameters") }

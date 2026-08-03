@@ -92,7 +92,7 @@ func (f *LogFactory) CreateLogger(name string) Logger {
 }
 
 // CreateLoggerWithProvider 使用指定的提供者创建日志实例
-func (f *LogFactory) CreateLoggerWithProvider(name string, providerName string, opts ...Option) Logger {
+func (f *LogFactory) CreateLoggerWithProvider(name, providerName string, opts ...Option) Logger {
 	f.mu.RLock()
 	provider, exists := f.providers[providerName]
 	f.mu.RUnlock()
@@ -170,7 +170,7 @@ type loggerHolder struct {
 
 // 全局日志实例（使用 atomic 保证并发安全）
 var (
-	globalLogger     atomic.Value // 存储 *loggerHolder
+	globalLogger      atomic.Value // 存储 *loggerHolder
 	loggerInitialized atomic.Bool
 )
 
@@ -207,7 +207,7 @@ func GetLoggerWithName(name string) Logger {
 }
 
 // GetLoggerWithProvider 获取指定提供者的日志实例
-func GetLoggerWithProvider(name string, provider string, opts ...Option) Logger {
+func GetLoggerWithProvider(name, provider string, opts ...Option) Logger {
 	return GetLogFactory().CreateLoggerWithProvider(name, provider, opts...)
 }
 

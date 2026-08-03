@@ -8,7 +8,7 @@ import "time"
 
 // WorkflowEvent — 工作流执行事件（双通道推送 + 树形追踪支持）
 type WorkflowEvent struct {
-	Type      string `json:"type"`
+	Type string `json:"type"`
 	// node.started       / node.completed / node.error
 	// node.skipped       / node.retrying / node.awaiting_input
 	// workflow.started   / workflow.completed / workflow.failed
@@ -63,15 +63,15 @@ func NewWorkflowEventWithParent(eventType, executionID, nodeID, nodeName, nodeTy
 
 // TracingNode — 追踪树节点（供前端树形面板展示）
 type TracingNode struct {
-	ID         string          `json:"id"`
-	Name       string          `json:"name"`
-	Type       string          `json:"type"`
-	Status     string          `json:"status"`
-	ElapsedMs  int64           `json:"elapsed_ms"`
-	Input      interface{}     `json:"input,omitempty"`
-	Output     interface{}     `json:"output,omitempty"`
-	Error      string          `json:"error,omitempty"`
-	Children   []*TracingNode  `json:"children,omitempty"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Type      string         `json:"type"`
+	Status    string         `json:"status"`
+	ElapsedMs int64          `json:"elapsed_ms"`
+	Input     interface{}    `json:"input,omitempty"`
+	Output    interface{}    `json:"output,omitempty"`
+	Error     string         `json:"error,omitempty"`
+	Children  []*TracingNode `json:"children,omitempty"`
 
 	// 条件分支信息
 	BranchID string `json:"branch_id,omitempty"`

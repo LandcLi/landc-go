@@ -69,7 +69,8 @@ func GetTenantTree(db *gorm.DB, rootID *uint64) ([]map[string]interface{}, error
 func buildTree(tenants []model.Tenant, parentID *uint64) []map[string]interface{} {
 	var tree []map[string]interface{}
 
-	for _, tenant := range tenants {
+	for i := range tenants {
+		tenant := &tenants[i]
 		var currentParentID *uint64
 		if tenant.ParentID != nil {
 			currentParentID = tenant.ParentID
@@ -106,6 +107,6 @@ func ParseConstraint(constraintStr string) (map[string]interface{}, error) {
 }
 
 // ValidateConstraint 验证数据是否满足约束条件（委托 model 包实现，保持 API 兼容）
-func ValidateConstraint(data map[string]interface{}, constraint map[string]interface{}) bool {
+func ValidateConstraint(data, constraint map[string]interface{}) bool {
 	return model.ValidateConstraint(data, constraint)
 }

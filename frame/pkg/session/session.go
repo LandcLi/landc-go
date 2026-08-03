@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -185,7 +184,10 @@ func Middleware(store Store, config *Config) gin.HandlerFunc {
 			}
 			sess.mu.RUnlock()
 
-			store.Set(c.Request.Context(), sessionID, saveData, config.MaxAge)
+			if err := store.Set(c.Request.Context(), sessionID, saveData, config.MaxAge); err != nil {
+				// 持久化失败不影响本次请求（内存 session 仍可用），记录错误
+				_ = c.Error(err)
+			}
 
 			// 设置 cookie
 			maxAgeSeconds := int(config.MaxAge.Seconds())
@@ -390,7 +392,7 @@ func (s *MemoryStore) Size() int {
 func MustFromContext(c *gin.Context) *Session {
 	sess := FromContext(c)
 	if sess == nil {
-		panic(fmt.Sprintf("session not found in context, ensure session.Middleware is registered"))
+		panic("session not found in context, ensure session.Middleware is registered")
 	}
 	return sess
 }

@@ -14,6 +14,8 @@ import (
 //   - LANDC_DATABASE_DSN=root:pwd@tcp(localhost:3306)/db
 //   - LANDC_REDIS_ADDR=localhost:6380
 //   - LANDC_LOG_LEVEL=debug
+//
+//nolint:gocyclo // 环境变量字段映射为线性分支，拆分收益低
 func ApplyEnvOverrides(cfg *Config) {
 	if cfg == nil {
 		return

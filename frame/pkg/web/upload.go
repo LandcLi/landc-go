@@ -106,7 +106,7 @@ func UploadFiles(c *gin.Context, fieldName string, config *UploadConfig) ([]*Upl
 }
 
 // ServeFile 下载文件（Content-Disposition: attachment）
-func ServeFile(c *gin.Context, filePath string, downloadName string) {
+func ServeFile(c *gin.Context, filePath, downloadName string) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"code":    40400,
@@ -119,7 +119,7 @@ func ServeFile(c *gin.Context, filePath string, downloadName string) {
 		downloadName = filepath.Base(filePath)
 	}
 
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename=%q`, downloadName))
 	c.File(filePath)
 }
 
@@ -161,7 +161,7 @@ func validateFile(header *multipart.FileHeader, config *UploadConfig) error {
 		ext := strings.ToLower(filepath.Ext(header.Filename))
 		allowed := false
 		for _, e := range config.AllowedExtensions {
-			if strings.ToLower(e) == ext || "."+strings.ToLower(e) == ext {
+			if strings.EqualFold(e, ext) || strings.EqualFold("."+e, ext) {
 				allowed = true
 				break
 			}
@@ -176,7 +176,7 @@ func validateFile(header *multipart.FileHeader, config *UploadConfig) error {
 
 func saveFile(file multipart.File, header *multipart.FileHeader, config *UploadConfig) (*UploadResult, error) {
 	// 确保上传目录存在
-	if err := os.MkdirAll(config.UploadDir, 0755); err != nil {
+	if err := os.MkdirAll(config.UploadDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 

@@ -25,9 +25,9 @@ type Cache interface {
 }
 
 var (
-	globalCache  Cache
-	globalRedis  *redis.Client
-	cacheMu      sync.RWMutex
+	globalCache Cache
+	globalRedis *redis.Client
+	cacheMu     sync.RWMutex
 )
 
 // InitGlobalCacheWithObject 使用已有的 Redis 客户端初始化

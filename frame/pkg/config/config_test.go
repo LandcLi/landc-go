@@ -93,7 +93,7 @@ func TestInitGlobalConfigWithPath(t *testing.T) {
 		}
 	}`
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestInitGlobalConfigWithPath_NotOverwrite(t *testing.T) {
 		}
 	}`
 
-	err = os.WriteFile(configPath, []byte(configContent), 0644)
+	err = os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestLoadJSONConfig(t *testing.T) {
 		}
 	}`
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -195,7 +195,7 @@ database:
   dsn: "file:test.db"
 `
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestLoadConfigFromFile_UnsupportedFormat(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.xml")
 
-	err := os.WriteFile(configPath, []byte("<config></config>"), 0644)
+	err := os.WriteFile(configPath, []byte("<config></config>"), 0o600)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}

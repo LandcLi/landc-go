@@ -94,7 +94,7 @@ func TestSessionMiddleware(t *testing.T) {
 
 	// 1. 登录
 	w1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("POST", "/login", nil)
+	req1, _ := http.NewRequest("POST", "/login", http.NoBody)
 	r.ServeHTTP(w1, req1)
 
 	if w1.Code != 200 {
@@ -130,7 +130,7 @@ func TestSessionMiddleware(t *testing.T) {
 
 	// 2. 访问 profile（带 session cookie）
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/profile", nil)
+	req2, _ := http.NewRequest("GET", "/profile", http.NoBody)
 	req2.AddCookie(sessionCookie)
 	r.ServeHTTP(w2, req2)
 
@@ -140,13 +140,13 @@ func TestSessionMiddleware(t *testing.T) {
 
 	// 3. 登出
 	w3 := httptest.NewRecorder()
-	req3, _ := http.NewRequest("POST", "/logout", nil)
+	req3, _ := http.NewRequest("POST", "/logout", http.NoBody)
 	req3.AddCookie(sessionCookie)
 	r.ServeHTTP(w3, req3)
 
 	// 4. 再次访问 profile（session 已清空）
 	w4 := httptest.NewRecorder()
-	req4, _ := http.NewRequest("GET", "/profile", nil)
+	req4, _ := http.NewRequest("GET", "/profile", http.NoBody)
 	req4.AddCookie(sessionCookie)
 	r.ServeHTTP(w4, req4)
 

@@ -15,12 +15,14 @@ import (
 func NewGenCommand() *cmd.Command {
 	genCmd := cmd.NewCommand("gen", "Generate code for api/service/dao layers", nil)
 
-	genCmd.AddCommand(
+	if err := genCmd.AddCommand(
 		newGenAPICommand(),
 		newGenServiceCommand(),
 		newGenDAOCommand(),
 		newGenAllCommand(),
-	)
+	); err != nil {
+		return nil
+	}
 
 	return genCmd
 }
@@ -87,11 +89,11 @@ func newGenAllCommand() *cmd.Command {
 // ============ 模板数据 ============
 
 type templateData struct {
-	Name       string // 原始名称 e.g. "user"
-	NameCamel  string // 大驼峰 e.g. "User"
-	NameLower  string // 全小写 e.g. "user"
-	NameSnake  string // 蛇形 e.g. "user_order"
-	Module     string // Go module 名
+	Name      string // 原始名称 e.g. "user"
+	NameCamel string // 大驼峰 e.g. "User"
+	NameLower string // 全小写 e.g. "user"
+	NameSnake string // 蛇形 e.g. "user_order"
+	Module    string // Go module 名
 }
 
 func newTemplateData(name, module string) *templateData {
@@ -111,8 +113,12 @@ func generateAPI(name, module string) error {
 
 	// 创建目录
 	apiDir := filepath.Join("api", data.NameLower, "v1")
-	os.MkdirAll(apiDir, 0755)
-	os.MkdirAll(filepath.Join("api", data.NameLower), 0755)
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		return fmt.Errorf("create api dir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join("api", data.NameLower), 0o755); err != nil {
+		return fmt.Errorf("create api subdir: %w", err)
+	}
 
 	// 生成 api/{name}/{name}.go
 	if err := renderToFile(filepath.Join("api", data.NameLower, data.NameLower+".go"), tplAPIInterface, data); err != nil {
@@ -136,8 +142,12 @@ func generateAPI(name, module string) error {
 func generateService(name, module string) error {
 	data := newTemplateData(name, module)
 
-	os.MkdirAll("service", 0755)
-	os.MkdirAll(filepath.Join("internal", "service"), 0755)
+	if err := os.MkdirAll("service", 0o755); err != nil {
+		return fmt.Errorf("create service dir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join("internal", "service"), 0o755); err != nil {
+		return fmt.Errorf("create internal/service dir: %w", err)
+	}
 
 	// 生成 service/{name}_service.go（接口）
 	if err := renderToFile(filepath.Join("service", data.NameLower+"_service.go"), tplServiceInterface, data); err != nil {
@@ -156,8 +166,12 @@ func generateService(name, module string) error {
 func generateDAO(name, module string) error {
 	data := newTemplateData(name, module)
 
-	os.MkdirAll("dao", 0755)
-	os.MkdirAll(filepath.Join("internal", "dao"), 0755)
+	if err := os.MkdirAll("dao", 0o755); err != nil {
+		return fmt.Errorf("create dao dir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join("internal", "dao"), 0o755); err != nil {
+		return fmt.Errorf("create internal/dao dir: %w", err)
+	}
 
 	// 生成 dao/{name}_dao.go（接口）
 	if err := renderToFile(filepath.Join("dao", data.NameLower+"_dao.go"), tplDAOInterface, data); err != nil {
@@ -176,7 +190,9 @@ func generateDAO(name, module string) error {
 func generateModel(name, module string) error {
 	data := newTemplateData(name, module)
 
-	os.MkdirAll("model", 0755)
+	if err := os.MkdirAll("model", 0o755); err != nil {
+		return fmt.Errorf("create model dir: %w", err)
+	}
 
 	if err := renderToFile(filepath.Join("model", data.NameLower+".go"), tplModel, data); err != nil {
 		return err
@@ -233,7 +249,7 @@ func getModuleOpt(parser *cmd.Parser) string {
 func toCamelCase(s string) string {
 	parts := strings.Split(s, "_")
 	for i := range parts {
-		if len(parts[i]) > 0 {
+		if parts[i] != "" {
 			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
 		}
 	}

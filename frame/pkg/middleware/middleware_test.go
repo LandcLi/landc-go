@@ -25,7 +25,7 @@ func TestTraceMiddleware(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
@@ -53,7 +53,7 @@ func TestTraceMiddlewareWithHeader(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	req.Header.Set("X-Trace-ID", "custom-trace-id")
 	r.ServeHTTP(w, req)
 
@@ -74,7 +74,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/panic", nil)
+	req, _ := http.NewRequest("GET", "/panic", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
@@ -98,7 +98,7 @@ func TestCORSMiddleware(t *testing.T) {
 
 	// 普通请求
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
@@ -107,7 +107,7 @@ func TestCORSMiddleware(t *testing.T) {
 
 	// OPTIONS 预检请求
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("OPTIONS", "/test", nil)
+	req2, _ := http.NewRequest("OPTIONS", "/test", http.NoBody)
 	r.ServeHTTP(w2, req2)
 
 	if w2.Code != http.StatusNoContent {
@@ -131,7 +131,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// 无 token
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/protected", nil)
+	req, _ := http.NewRequest("GET", "/protected", http.NoBody)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("Expected 401 without token, got %d", w.Code)
@@ -139,7 +139,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// 无效 token
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/protected", nil)
+	req2, _ := http.NewRequest("GET", "/protected", http.NoBody)
 	req2.Header.Set("Authorization", "Bearer invalid-token")
 	r.ServeHTTP(w2, req2)
 	if w2.Code != http.StatusUnauthorized {
@@ -149,7 +149,7 @@ func TestAuthMiddleware(t *testing.T) {
 	// 有效 token
 	token, _ := auth.GenerateToken(42, "testuser", "admin")
 	w3 := httptest.NewRecorder()
-	req3, _ := http.NewRequest("GET", "/protected", nil)
+	req3, _ := http.NewRequest("GET", "/protected", http.NoBody)
 	req3.Header.Set("Authorization", "Bearer "+token)
 	r.ServeHTTP(w3, req3)
 	if w3.Code != http.StatusOK {
@@ -180,7 +180,7 @@ func TestRoleRequiredMiddleware(t *testing.T) {
 	// admin 角色
 	adminToken, _ := auth.GenerateToken(1, "admin", "admin")
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/admin", nil)
+	req, _ := http.NewRequest("GET", "/admin", http.NoBody)
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	r.ServeHTTP(w, req)
 	if w.Code != 200 {
@@ -190,7 +190,7 @@ func TestRoleRequiredMiddleware(t *testing.T) {
 	// user 角色
 	userToken, _ := auth.GenerateToken(2, "user", "user")
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/admin", nil)
+	req2, _ := http.NewRequest("GET", "/admin", http.NoBody)
 	req2.Header.Set("Authorization", "Bearer "+userToken)
 	r.ServeHTTP(w2, req2)
 	if w2.Code != http.StatusForbidden {

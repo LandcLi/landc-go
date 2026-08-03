@@ -151,7 +151,7 @@ func TestGenerator_Handler(t *testing.T) {
 	r.GET("/openapi.json", gen.Handler())
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/openapi.json", nil)
+	req, _ := http.NewRequest("GET", "/openapi.json", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
@@ -173,7 +173,7 @@ func TestGenerator_SwaggerUIHandler(t *testing.T) {
 	r.GET("/swagger", gen.SwaggerUIHandler("/openapi.json"))
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/swagger", nil)
+	req, _ := http.NewRequest("GET", "/swagger", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
@@ -181,7 +181,7 @@ func TestGenerator_SwaggerUIHandler(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if len(body) == 0 {
+	if body == "" {
 		t.Error("expected non-empty HTML body")
 	}
 }

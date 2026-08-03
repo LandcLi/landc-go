@@ -25,7 +25,7 @@ func (s *executionServiceImpl) Get(ctx context.Context, execID string) (*model.E
 	return s.store.GetExecution(ctx, execID)
 }
 
-func (s *executionServiceImpl) List(ctx context.Context, workflowID string, status string, page, size int) ([]*model.Execution, int64, error) {
+func (s *executionServiceImpl) List(ctx context.Context, workflowID, status string, page, size int) ([]*model.Execution, int64, error) {
 	offset := (page - 1) * size
 	return s.store.ListExecutions(ctx, workflowID, offset, size)
 }

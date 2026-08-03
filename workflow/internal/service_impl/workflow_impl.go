@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/LandcLi/landc-go/tools/generate"
 	v1 "github.com/LandcLi/landc-go/workflow/api/v1"
 	"github.com/LandcLi/landc-go/workflow/pkg/engine"
 	"github.com/LandcLi/landc-go/workflow/pkg/model"
 	storepkg "github.com/LandcLi/landc-go/workflow/pkg/store"
 	"github.com/LandcLi/landc-go/workflow/service"
-	"github.com/LandcLi/landc-go/tools/generate"
 )
 
 type workflowServiceImpl struct {

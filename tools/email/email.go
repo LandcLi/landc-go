@@ -5,12 +5,7 @@ import (
 	"math/rand"
 	"regexp"
 	"strings"
-	"time"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // ==================== 邮箱验证 ====================
 
@@ -22,7 +17,7 @@ func IsValid(email string) bool {
 }
 
 // IsValidWithDomain 判断邮箱是否有效且属于指定域名
-func IsValidWithDomain(email string, domain string) bool {
+func IsValidWithDomain(email, domain string) bool {
 	if !IsValid(email) {
 		return false
 	}
@@ -151,6 +146,8 @@ func ExtractFromText(text string) []string {
 // ==================== 辅助函数 ====================
 
 // generateUsername 生成随机用户名
+//
+//nolint:gosec // 生成测试邮箱的伪随机，非安全场景
 func generateUsername() string {
 	length := rand.Intn(8) + 5 // 5-12位
 	chars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -162,6 +159,8 @@ func generateUsername() string {
 }
 
 // getRandomDomain 获取随机域名
+//
+//nolint:gosec // 生成测试邮箱的伪随机，非安全场景
 func getRandomDomain() string {
 	domains := []string{
 		"gmail.com",

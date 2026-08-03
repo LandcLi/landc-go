@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,7 @@ func TestGenerateAll(t *testing.T) {
 	defer os.Chdir(originalDir)
 
 	// 创建 go.mod
-	os.WriteFile("go.mod", []byte("module testproject\n\ngo 1.24.0\n"), 0644)
+	_ = os.WriteFile("go.mod", []byte("module testproject\n\ngo 1.24.0\n"), 0o600)
 
 	// 生成所有层
 	if err := generateModel("order", "testproject"); err != nil {
@@ -56,20 +57,20 @@ func TestGenerateSkipsExisting(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	os.WriteFile("go.mod", []byte("module testproject\n\ngo 1.24.0\n"), 0644)
+	_ = os.WriteFile("go.mod", []byte("module testproject\n\ngo 1.24.0\n"), 0o600)
 
 	// 第一次生成
 	generateModel("product", "testproject")
 
 	// 读取内容
-	content1, _ := os.ReadFile(filepath.Join(tmpDir, "model/product.go"))
+	content1, _ := os.ReadFile(filepath.Join(tmpDir, "model", "product.go"))
 
 	// 第二次生成（应跳过已存在文件）
 	generateModel("product", "testproject")
 
-	content2, _ := os.ReadFile(filepath.Join(tmpDir, "model/product.go"))
+	content2, _ := os.ReadFile(filepath.Join(tmpDir, "model", "product.go"))
 
-	if string(content1) != string(content2) {
+	if !bytes.Equal(content1, content2) {
 		t.Error("Existing file should not be overwritten")
 	}
 }
@@ -117,7 +118,7 @@ func TestDetectModule(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(originalDir)
 
-	os.WriteFile("go.mod", []byte("module github.com/example/myapp\n\ngo 1.24.0\n"), 0644)
+	_ = os.WriteFile("go.mod", []byte("module github.com/example/myapp\n\ngo 1.24.0\n"), 0o600)
 
 	result := detectModule()
 	if result != "github.com/example/myapp" {

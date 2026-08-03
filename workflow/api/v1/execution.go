@@ -38,11 +38,11 @@ type GetExecutionResponse struct {
 // ==================== 执行列表 ====================
 
 type ListExecutionsRequest struct {
-	meta.Meta   `path:"/api/executions" method:"GET"`
-	WorkflowID  string `form:"workflow_id,omitempty"`
-	Status      string `form:"status,omitempty"`
-	Page        int    `form:"page,default=1"`
-	Size        int    `form:"size,default=20"`
+	meta.Meta  `path:"/api/executions" method:"GET"`
+	WorkflowID string `form:"workflow_id,omitempty"`
+	Status     string `form:"status,omitempty"`
+	Page       int    `form:"page,default=1"`
+	Size       int    `form:"size,default=20"`
 }
 
 type ListExecutionsResponse struct {

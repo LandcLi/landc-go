@@ -6,15 +6,15 @@ import (
 
 // Config 工作流框架业务配置
 type Config struct {
-	Engine   EngineConfig
+	Engine    EngineConfig
 	Scheduler SchedulerConfig
 }
 
 // EngineConfig 引擎配置
 type EngineConfig struct {
 	MaxParallelTasks int `json:"max_parallel_tasks"`
-	DefaultTimeout   int `json:"default_timeout"`   // 秒
-	IdempotencyTTL   int `json:"idempotency_ttl"`   // 秒
+	DefaultTimeout   int `json:"default_timeout"` // 秒
+	IdempotencyTTL   int `json:"idempotency_ttl"` // 秒
 }
 
 // SchedulerConfig 调度器配置

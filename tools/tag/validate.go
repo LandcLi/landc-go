@@ -70,6 +70,7 @@ func (v *optionsValidator) Validate(value interface{}) error {
 // 注意：对于nil值、空字符串、空白字符串、0值、false值、空数组都会返回错误
 type RequiredValidator struct{}
 
+//nolint:gocyclo // 类型检查分派为线性 switch，拆分收益低
 func (v *RequiredValidator) Validate(value interface{}) error {
 	if value == nil {
 		return fmt.Errorf("value is required")
@@ -230,6 +231,7 @@ type MinValidator struct {
 	Min int
 }
 
+//nolint:gocyclo // 数值类型分派为线性 switch，拆分收益低
 func (v *MinValidator) Validate(value interface{}) error {
 	if value == nil {
 		return nil
@@ -261,19 +263,19 @@ func (v *MinValidator) Validate(value interface{}) error {
 			return fmt.Errorf("value must be at least %d", v.Min)
 		}
 	case uint8:
-		if val < uint8(v.Min) {
+		if v.Min < 0 || val < uint8(v.Min) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at least %d", v.Min)
 		}
 	case uint16:
-		if val < uint16(v.Min) {
+		if v.Min < 0 || val < uint16(v.Min) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at least %d", v.Min)
 		}
 	case uint32:
-		if val < uint32(v.Min) {
+		if v.Min < 0 || val < uint32(v.Min) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at least %d", v.Min)
 		}
 	case uint64:
-		if val < uint64(v.Min) {
+		if v.Min < 0 || val < uint64(v.Min) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at least %d", v.Min)
 		}
 	case float32:
@@ -297,6 +299,7 @@ type MaxValidator struct {
 	Max int
 }
 
+//nolint:gocyclo // 数值类型分派为线性 switch，拆分收益低
 func (v *MaxValidator) Validate(value interface{}) error {
 	if value == nil {
 		return nil
@@ -328,19 +331,19 @@ func (v *MaxValidator) Validate(value interface{}) error {
 			return fmt.Errorf("value must be at most %d", v.Max)
 		}
 	case uint8:
-		if val > uint8(v.Max) {
+		if v.Max < 0 || val > uint8(v.Max) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at most %d", v.Max)
 		}
 	case uint16:
-		if val > uint16(v.Max) {
+		if v.Max < 0 || val > uint16(v.Max) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at most %d", v.Max)
 		}
 	case uint32:
-		if val > uint32(v.Max) {
+		if v.Max < 0 || val > uint32(v.Max) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at most %d", v.Max)
 		}
 	case uint64:
-		if val > uint64(v.Max) {
+		if v.Max < 0 || val > uint64(v.Max) { //nolint:gosec // 左侧短路保护已排除负值
 			return fmt.Errorf("value must be at most %d", v.Max)
 		}
 	case float32:
@@ -388,6 +391,7 @@ type PatternValidator struct {
 	regex   *regexp.Regexp
 }
 
+//nolint:gocritic // type switch 单 case，改写收益低
 func (v *PatternValidator) Validate(value interface{}) error {
 	if value == nil {
 		return nil
@@ -538,6 +542,7 @@ type FormatValidator struct {
 	Format string
 }
 
+//nolint:gocritic,gocyclo // type switch 内含嵌套 switch；格式校验分派为线性 switch
 func (v *FormatValidator) Validate(value interface{}) error {
 	if value == nil {
 		return nil
@@ -842,7 +847,7 @@ func (v *Password3Validator) Validate(value interface{}) error {
 		hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(val)
 		hasLower := regexp.MustCompile(`[a-z]`).MatchString(val)
 		hasDigit := regexp.MustCompile(`\d`).MatchString(val)
-		hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(val)
+		hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]`).MatchString(val)
 		if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
 			return fmt.Errorf("password must contain uppercase letters, lowercase letters, numbers and special characters")
 		}
@@ -965,6 +970,7 @@ type EnumValidator struct {
 	Values []string
 }
 
+//nolint:gocritic // type switch 单 case，改写需调整闭合结构，收益低
 func (v *EnumValidator) Validate(value interface{}) error {
 	if value == nil {
 		return nil
@@ -1592,8 +1598,8 @@ func (v *DifferentValidator) Validate(value interface{}) error {
 	return nil
 }
 
-func CreateMinValidator(min int) Validator {
-	return &MinValidator{Min: min}
+func CreateMinValidator(minValue int) Validator {
+	return &MinValidator{Min: minValue}
 }
 
 // RegexValidator 正则表达式验证器
@@ -1650,8 +1656,8 @@ func (v *NotRegexValidator) Validate(value interface{}) error {
 	return nil
 }
 
-func CreateMaxValidator(max int) Validator {
-	return &MaxValidator{Max: max}
+func CreateMaxValidator(maxValue int) Validator {
+	return &MaxValidator{Max: maxValue}
 }
 
 func CreateLengthValidator(length int) Validator {

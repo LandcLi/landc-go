@@ -17,7 +17,7 @@ import (
 func TestHeaderExtractor(t *testing.T) {
 	extractor := core.NewDefaultHeaderExtractor()
 
-	req, err := http.NewRequest("GET", "/api/hello", nil)
+	req, err := http.NewRequest("GET", "/api/hello", http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestClientIPTrustedProxy(t *testing.T) {
 	extractor := core.NewDefaultHeaderExtractor()
 
 	// 来自可信代理的请求，应信任 X-Forwarded-For
-	req, _ := http.NewRequest("GET", "/", nil)
+	req, _ := http.NewRequest("GET", "/", http.NoBody)
 	req.RemoteAddr = "192.168.1.1:12345" // 可信代理（私有网络）
 	req.Header.Set("X-Forwarded-For", "203.0.113.50, 192.168.1.1")
 
@@ -70,7 +70,7 @@ func TestClientIPTrustedProxy(t *testing.T) {
 	}
 
 	// 来自非可信代理的请求，不应信任 X-Forwarded-For
-	req2, _ := http.NewRequest("GET", "/", nil)
+	req2, _ := http.NewRequest("GET", "/", http.NoBody)
 	req2.RemoteAddr = "203.0.113.100:12345" // 非可信代理
 	req2.Header.Set("X-Forwarded-For", "1.2.3.4")
 
@@ -83,7 +83,7 @@ func TestClientIPTrustedProxy(t *testing.T) {
 func TestClientIPXRealIP(t *testing.T) {
 	extractor := core.NewDefaultHeaderExtractor()
 
-	req, _ := http.NewRequest("GET", "/", nil)
+	req, _ := http.NewRequest("GET", "/", http.NoBody)
 	req.RemoteAddr = "10.0.0.1:8080" // 可信代理
 	req.Header.Set("X-Real-IP", "203.0.113.77")
 
@@ -96,7 +96,7 @@ func TestClientIPXRealIP(t *testing.T) {
 func TestHeaderProcessor(t *testing.T) {
 	processor := core.NewHeaderProcessor()
 
-	req, err := http.NewRequest("GET", "/api/hello", nil)
+	req, err := http.NewRequest("GET", "/api/hello", http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestHeaderProcessor(t *testing.T) {
 func TestTrustedProxiesConfig(t *testing.T) {
 	processor := core.NewHeaderProcessor().WithTrustedProxies([]string{"10.0.0.0/8"})
 
-	req, _ := http.NewRequest("GET", "/", nil)
+	req, _ := http.NewRequest("GET", "/", http.NoBody)
 	req.RemoteAddr = "10.0.0.5:8080"
 	req.Header.Set("X-Forwarded-For", "8.8.8.8")
 
@@ -212,7 +212,7 @@ func TestGinMiddlewareBasicSuccess(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -245,7 +245,7 @@ func TestGinMiddlewareWithError(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/error", nil)
+	req, _ := http.NewRequest("GET", "/error", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	var resp core.Response
@@ -271,7 +271,7 @@ func TestGinMiddlewareWithTraceID(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/trace", nil)
+	req, _ := http.NewRequest("GET", "/trace", http.NoBody)
 	req.Header.Set("X-Trace-ID", "my-custom-trace-id")
 	r.ServeHTTP(w, req)
 
@@ -295,7 +295,7 @@ func TestGinMiddlewareNoBody(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/empty", nil)
+	req, _ := http.NewRequest("GET", "/empty", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	var resp core.Response
@@ -318,7 +318,7 @@ func TestGinMiddlewareResponseWrittenToClient(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/check", nil)
+	req, _ := http.NewRequest("GET", "/check", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	// 关键：验证响应体不为空（修复 #1 的验证）
@@ -356,7 +356,7 @@ func TestGinMiddlewareCustomErrorParser(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/custom-error", nil)
+	req, _ := http.NewRequest("GET", "/custom-error", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	var resp core.Response

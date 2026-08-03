@@ -6,13 +6,13 @@
 //   - 租户上下文（context.Context）：通过 context 传递当前租户信息
 //
 // 快速开始：
-//   1. 创建 Manager：manager := saas.NewManager(db)
-//   2. 设置租户上下文：ctx := saas.WithTenant(context.Background(), tenantID)
-//   3. 查询数据：db.WithContext(ctx).Scopes(manager.TenantScope(ctx, "orders")).Find(&orders)
-//   4. 创建数据：db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-//       tx.Create(&order)
-//       return manager.CreateData(ctx, tx, "orders", order.ID)
-//   })
+//  1. 创建 Manager：manager := saas.NewManager(db)
+//  2. 设置租户上下文：ctx := saas.WithTenant(context.Background(), tenantID)
+//  3. 查询数据：db.WithContext(ctx).Scopes(manager.TenantScope(ctx, "orders")).Find(&orders)
+//  4. 创建数据：db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+//     tx.Create(&order)
+//     return manager.CreateData(ctx, tx, "orders", order.ID)
+//     })
 //
 // 设计理念：
 //   - 零侵入：不修改业务表，通过中间关系表实现隔离

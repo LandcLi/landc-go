@@ -554,7 +554,7 @@ func TestLogConfigChainedBuilder(t *testing.T) {
 		WithFormat("json").
 		WithOutputPath("stdout").
 		WithMaxLogSize(50).
-		WithMaxLogAge(24 * time.Hour).
+		WithMaxLogAge(24*time.Hour).
 		WithMaxLogFiles(5).
 		WithCompressLogs(true).
 		WithMaxMessageSize(10).

@@ -23,7 +23,7 @@ func TestRateLimiter(t *testing.T) {
 		// 前 10 个请求应该通过
 		for i := 0; i < 10; i++ {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest("GET", "/test", http.NoBody)
 			req.RemoteAddr = "127.0.0.1:1234"
 			r.ServeHTTP(w, req)
 			if w.Code != 200 {
@@ -42,14 +42,14 @@ func TestRateLimiter(t *testing.T) {
 		// 消耗所有令牌
 		for i := 0; i < 2; i++ {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest("GET", "/test", http.NoBody)
 			req.RemoteAddr = "127.0.0.1:1234"
 			r.ServeHTTP(w, req)
 		}
 
 		// 第 3 个请求应该被限流
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/test", nil)
+		req, _ := http.NewRequest("GET", "/test", http.NoBody)
 		req.RemoteAddr = "127.0.0.1:1234"
 		r.ServeHTTP(w, req)
 		if w.Code != 429 {
@@ -66,7 +66,7 @@ func TestRateLimiter(t *testing.T) {
 
 		// IP1 的第一个请求
 		w1 := httptest.NewRecorder()
-		req1, _ := http.NewRequest("GET", "/test", nil)
+		req1, _ := http.NewRequest("GET", "/test", http.NoBody)
 		req1.RemoteAddr = "1.1.1.1:1234"
 		r.ServeHTTP(w1, req1)
 		if w1.Code != 200 {
@@ -75,7 +75,7 @@ func TestRateLimiter(t *testing.T) {
 
 		// IP2 的第一个请求也应该通过
 		w2 := httptest.NewRecorder()
-		req2, _ := http.NewRequest("GET", "/test", nil)
+		req2, _ := http.NewRequest("GET", "/test", http.NoBody)
 		req2.RemoteAddr = "2.2.2.2:1234"
 		r.ServeHTTP(w2, req2)
 		if w2.Code != 200 {
@@ -96,7 +96,7 @@ func TestGlobalRateLimiter(t *testing.T) {
 	// 消耗所有令牌
 	for i := 0; i < 3; i++ {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/test", nil)
+		req, _ := http.NewRequest("GET", "/test", http.NoBody)
 		req.RemoteAddr = "127.0.0.1:1234"
 		r.ServeHTTP(w, req)
 		if w.Code != 200 {
@@ -106,7 +106,7 @@ func TestGlobalRateLimiter(t *testing.T) {
 
 	// 不同 IP 也应该被限流（全局共享）
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	req.RemoteAddr = "9.9.9.9:1234"
 	r.ServeHTTP(w, req)
 	if w.Code != 429 {
@@ -131,13 +131,13 @@ func TestCircuitBreaker(t *testing.T) {
 		// 触发 3 次失败
 		for i := 0; i < 3; i++ {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest("GET", "/test", http.NoBody)
 			r.ServeHTTP(w, req)
 		}
 
 		// 第 4 次应该被熔断
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/test", nil)
+		req, _ := http.NewRequest("GET", "/test", http.NoBody)
 		r.ServeHTTP(w, req)
 		if w.Code != 503 {
 			t.Errorf("expected 503 (circuit open), got %d", w.Code)
@@ -163,7 +163,7 @@ func TestCircuitBreaker(t *testing.T) {
 		// 触发熔断
 		for i := 0; i < 2; i++ {
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest("GET", "/test", http.NoBody)
 			r.ServeHTTP(w, req)
 		}
 
@@ -175,7 +175,7 @@ func TestCircuitBreaker(t *testing.T) {
 
 		// 半开状态放行一个试探请求
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/test", nil)
+		req, _ := http.NewRequest("GET", "/test", http.NoBody)
 		r.ServeHTTP(w, req)
 		if w.Code != 200 {
 			t.Errorf("expected 200 (half-open success), got %d", w.Code)
@@ -183,7 +183,7 @@ func TestCircuitBreaker(t *testing.T) {
 
 		// 后续请求也应该正常
 		w2 := httptest.NewRecorder()
-		req2, _ := http.NewRequest("GET", "/test", nil)
+		req2, _ := http.NewRequest("GET", "/test", http.NoBody)
 		r.ServeHTTP(w2, req2)
 		if w2.Code != 200 {
 			t.Errorf("expected 200 (recovered), got %d", w2.Code)
@@ -206,7 +206,7 @@ func TestRateLimiter_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			w := httptest.NewRecorder()
-			req, _ := http.NewRequest("GET", "/test", nil)
+			req, _ := http.NewRequest("GET", "/test", http.NoBody)
 			req.RemoteAddr = "127.0.0.1:1234"
 			r.ServeHTTP(w, req)
 			// 不检查具体状态码，只确认不 panic

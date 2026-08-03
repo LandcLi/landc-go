@@ -28,7 +28,7 @@ type Config struct {
 }
 
 // NewConfig 创建新的邮件客户端配置
-func NewConfig(smtpHost string, smtpPort int, pop3Host string, pop3Port int, imapHost string, imapPort int, username string, password string, useTLS bool, authType string, timeout time.Duration, maxRetries int, retryInterval time.Duration) *Config {
+func NewConfig(smtpHost string, smtpPort int, pop3Host string, pop3Port int, imapHost string, imapPort int, username, password string, useTLS bool, authType string, timeout time.Duration, maxRetries int, retryInterval time.Duration) *Config {
 	return &Config{
 		SMTPHost:      smtpHost,
 		SMTPPort:      smtpPort,
@@ -176,6 +176,7 @@ func (c *Client) send(email *Email) error {
 	// 启用TLS
 	if c.useTLS {
 		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			ServerName: c.smtpHost,
 		}
 		if err := client.StartTLS(tlsConfig); err != nil {
@@ -225,6 +226,8 @@ func (c *Client) send(email *Email) error {
 }
 
 // ReceivePOP3 通过POP3接收邮件
+//
+//nolint:gocyclo // POP3 协议状态机分支多，拆分收益低
 func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 	// 构建POP3服务器地址
 	addr := fmt.Sprintf("%s:%d", c.pop3Host, c.pop3Port)
@@ -239,6 +242,7 @@ func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 	// 启用TLS
 	if c.useTLS {
 		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			ServerName: c.pop3Host,
 		}
 		conn = tls.Client(conn, tlsConfig)
@@ -311,9 +315,7 @@ func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 				break
 			}
 			// 处理转义
-			if strings.HasPrefix(line, ".") {
-				line = line[1:]
-			}
+			line = strings.TrimPrefix(line, ".")
 			data = append(data, []byte(line+"\r\n")...)
 		}
 
@@ -339,6 +341,8 @@ func (c *Client) ReceivePOP3(maxMessages int) ([]*Email, error) {
 }
 
 // ReceiveIMAP 通过IMAP接收邮件
+//
+//nolint:gocyclo // IMAP 协议状态机分支多，拆分收益低
 func (c *Client) ReceiveIMAP(folder string, maxMessages int) ([]*Email, error) {
 	// 构建IMAP服务器地址
 	addr := fmt.Sprintf("%s:%d", c.imapHost, c.imapPort)
@@ -353,6 +357,7 @@ func (c *Client) ReceiveIMAP(folder string, maxMessages int) ([]*Email, error) {
 	// 启用TLS
 	if c.useTLS {
 		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			ServerName: c.imapHost,
 		}
 		conn = tls.Client(conn, tlsConfig)
@@ -479,6 +484,7 @@ func (c *Client) GetUnreadCountIMAP(folder string) (int, error) {
 	// 启用TLS
 	if c.useTLS {
 		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			ServerName: c.imapHost,
 		}
 		conn = tls.Client(conn, tlsConfig)
@@ -559,6 +565,7 @@ func (c *Client) DeleteMessagePOP3(messageID int) error {
 	// 启用TLS
 	if c.useTLS {
 		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			ServerName: c.pop3Host,
 		}
 		conn = tls.Client(conn, tlsConfig)

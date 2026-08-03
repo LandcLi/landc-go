@@ -195,7 +195,7 @@ func parseMetaFromStruct(typ reflect.Type, val reflect.Value) (map[string]string
 	// 如果没有指定名称，使用结构体名称（首字母小写）
 	if meta["name"] == "" {
 		structName := typ.Name()
-		if len(structName) > 0 {
+		if structName != "" {
 			meta["name"] = str.Uncapitalize(structName)
 		}
 	}
@@ -305,19 +305,19 @@ func setFieldValue(field reflect.Value, value string) {
 		field.SetString(value)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		var intValue int64
-		fmt.Sscanf(value, "%d", &intValue)
+		_, _ = fmt.Sscanf(value, "%d", &intValue)
 		field.SetInt(intValue)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		var uintValue uint64
-		fmt.Sscanf(value, "%d", &uintValue)
+		_, _ = fmt.Sscanf(value, "%d", &uintValue)
 		field.SetUint(uintValue)
 	case reflect.Float32, reflect.Float64:
 		var floatValue float64
-		fmt.Sscanf(value, "%f", &floatValue)
+		_, _ = fmt.Sscanf(value, "%f", &floatValue)
 		field.SetFloat(floatValue)
 	case reflect.Bool:
 		var boolValue bool
-		fmt.Sscanf(value, "%t", &boolValue)
+		_, _ = fmt.Sscanf(value, "%t", &boolValue)
 		field.SetBool(boolValue)
 	}
 }

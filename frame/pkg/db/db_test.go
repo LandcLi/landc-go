@@ -37,7 +37,7 @@ func TestInitGlobalDBWithObject(t *testing.T) {
 func TestInitGlobalDBWithConfig(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
-		DSN:   "file::memory:?cache=shared",
+		DSN:    "file::memory:?cache=shared",
 	}
 
 	err := InitGlobalDBWithConfig(cfg)
@@ -106,7 +106,7 @@ func TestAutoMigrate(t *testing.T) {
 func TestInitGlobalDBWithConfig_DuplicateInit(t *testing.T) {
 	cfg := &config.DatabaseConfig{
 		Driver: "sqlite",
-		DSN:   "file::memory:?cache=shared",
+		DSN:    "file::memory:?cache=shared",
 	}
 
 	err := InitGlobalDBWithConfig(cfg)

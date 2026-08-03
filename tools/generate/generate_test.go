@@ -64,24 +64,24 @@ func TestUUIDv5(t *testing.T) {
 
 // TestRandomInt 测试随机整数生成
 func TestRandomInt(t *testing.T) {
-	min := 1
-	max := 100
-	val, err := RandomInt(min, max)
+	minValue := 1
+	maxValue := 100
+	val, err := RandomInt(minValue, maxValue)
 	if err != nil {
 		t.Errorf("RandomInt should not return error: %v", err)
 	}
-	if val < min || val > max {
-		t.Errorf("RandomInt should return value between %d and %d, got %d", min, max, val)
+	if val < minValue || val > maxValue {
+		t.Errorf("RandomInt should return value between %d and %d, got %d", minValue, maxValue, val)
 	}
 }
 
 // TestMustRandomInt 测试 MustRandomInt 函数
 func TestMustRandomInt(t *testing.T) {
-	min := 1
-	max := 100
-	val := MustRandomInt(min, max)
-	if val < min || val > max {
-		t.Errorf("MustRandomInt should return value between %d and %d, got %d", min, max, val)
+	minValue := 1
+	maxValue := 100
+	val := MustRandomInt(minValue, maxValue)
+	if val < minValue || val > maxValue {
+		t.Errorf("MustRandomInt should return value between %d and %d, got %d", minValue, maxValue, val)
 	}
 }
 
@@ -295,24 +295,24 @@ func TestMustRandomBool(t *testing.T) {
 
 // TestRandomFloat 测试随机浮点数生成
 func TestRandomFloat(t *testing.T) {
-	min := 1.0
-	max := 10.0
-	val, err := RandomFloat(min, max)
+	minValue := 1.0
+	maxValue := 10.0
+	val, err := RandomFloat(minValue, maxValue)
 	if err != nil {
 		t.Errorf("RandomFloat should not return error: %v", err)
 	}
-	if val < min || val >= max {
-		t.Errorf("RandomFloat should return value between %f and %f, got %f", min, max, val)
+	if val < minValue || val >= maxValue {
+		t.Errorf("RandomFloat should return value between %f and %f, got %f", minValue, maxValue, val)
 	}
 }
 
 // TestMustRandomFloat 测试 MustRandomFloat 函数
 func TestMustRandomFloat(t *testing.T) {
-	min := 1.0
-	max := 10.0
-	val := MustRandomFloat(min, max)
-	if val < min || val >= max {
-		t.Errorf("MustRandomFloat should return value between %f and %f, got %f", min, max, val)
+	minValue := 1.0
+	maxValue := 10.0
+	val := MustRandomFloat(minValue, maxValue)
+	if val < minValue || val >= maxValue {
+		t.Errorf("MustRandomFloat should return value between %f and %f, got %f", minValue, maxValue, val)
 	}
 }
 
@@ -372,7 +372,7 @@ func TestGenerateStrongPassword(t *testing.T) {
 	if len(password) != length {
 		t.Errorf("GenerateStrongPassword should return string of length %d, got %d", length, len(password))
 	}
-	
+
 	// 验证密码包含至少一个小写字母
 	if !regexp.MustCompile(`[a-z]`).MatchString(password) {
 		t.Error("GenerateStrongPassword should include at least one lowercase letter")
@@ -382,11 +382,11 @@ func TestGenerateStrongPassword(t *testing.T) {
 		t.Error("GenerateStrongPassword should include at least one uppercase letter")
 	}
 	// 验证密码包含至少一个数字
-	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
+	if !regexp.MustCompile(`\d`).MatchString(password) {
 		t.Error("GenerateStrongPassword should include at least one digit")
 	}
 	// 验证密码包含至少一个特殊符号
-	if !regexp.MustCompile(`[!@#$%^&*()_+-=\[\]{}|;:,.<>?]`).MatchString(password) {
+	if !regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]`).MatchString(password) {
 		t.Error("GenerateStrongPassword should include at least one special character")
 	}
 }
@@ -398,7 +398,7 @@ func TestMustGenerateStrongPassword(t *testing.T) {
 	if len(password) != length {
 		t.Errorf("MustGenerateStrongPassword should return string of length %d, got %d", length, len(password))
 	}
-	
+
 	// 验证密码包含至少一个小写字母
 	if !regexp.MustCompile(`[a-z]`).MatchString(password) {
 		t.Error("MustGenerateStrongPassword should include at least one lowercase letter")
@@ -408,11 +408,11 @@ func TestMustGenerateStrongPassword(t *testing.T) {
 		t.Error("MustGenerateStrongPassword should include at least one uppercase letter")
 	}
 	// 验证密码包含至少一个数字
-	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
+	if !regexp.MustCompile(`\d`).MatchString(password) {
 		t.Error("MustGenerateStrongPassword should include at least one digit")
 	}
 	// 验证密码包含至少一个特殊符号
-	if !regexp.MustCompile(`[!@#$%^&*()_+-=\[\]{}|;:,.<>?]`).MatchString(password) {
+	if !regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]`).MatchString(password) {
 		t.Error("MustGenerateStrongPassword should include at least one special character")
 	}
 }

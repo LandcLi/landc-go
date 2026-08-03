@@ -24,9 +24,9 @@ type (
 	}
 
 	JWTConfig struct {
-		Secret         string `json:"secret" yaml:"secret"`
-		ExpireTime     string `json:"expire_time" yaml:"expire_time"`
-		Issuer         string `json:"issuer" yaml:"issuer"`
+		Secret     string `json:"secret" yaml:"secret"`
+		ExpireTime string `json:"expire_time" yaml:"expire_time"`
+		Issuer     string `json:"issuer" yaml:"issuer"`
 		// SigningMethod 签名算法：HS256（默认）/ RS256 / ES256
 		SigningMethod string `json:"signing_method" yaml:"signing_method"`
 		// PrivateKeyPath 非对称签名私钥 PEM 文件路径（RS256/ES256）
@@ -370,7 +370,9 @@ func (c *Config) MarshalYAML() (interface{}, error) {
 
 	if len(c.Other) == 0 {
 		var result map[string]interface{}
-		yaml.Unmarshal(data, &result)
+		if err := yaml.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
 		return result, nil
 	}
 

@@ -1,8 +1,8 @@
 package registry
 
 import (
-	"net"
 	"context"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -11,42 +11,42 @@ import (
 // isEtcdAvailable 快速检测 etcd 是否可用（在创建 registry 之前调用）
 func isEtcdAvailable(t *testing.T) bool {
 	t.Helper()
-	
+
 	// 快速检测端口是否可连接（2 秒超时）
 	conn, err := net.DialTimeout("tcp", "localhost:2379", 2*time.Second)
 	if err != nil {
 		return false
 	}
 	conn.Close()
-	
+
 	return true
 }
 
 // skipIfNoEtcd 检测 etcd 是否可用，不可用则跳过测试
 func skipIfNoEtcd(t *testing.T) {
 	t.Helper()
-	
+
 	// 先检查端口是否可连接（快速失败）
 	if !isEtcdAvailable(t) {
 		t.Skip("etcd not available, skipping test")
 	}
-	
+
 	// 创建临时 registry 验证 etcd 集群状态
 	cfg := EtcdRegistryConfig{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: 5 * time.Second,
 	}
-	
+
 	registry, err := NewEtcdRegistry(cfg)
 	if err != nil {
 		t.Skip("etcd not available, skipping test")
 	}
 	defer registry.Close()
-	
+
 	// 验证 etcd 集群状态
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	
+
 	_, err = registry.client.Cluster.MemberList(ctx)
 	if err != nil {
 		t.Skip("etcd not available, skipping test")
@@ -142,10 +142,10 @@ func TestEtcdRegistry_RegisterDeregister(t *testing.T) {
 	ctx := context.Background()
 
 	instance := &ServiceInstance{
-		ID:      "test-instance",
-		Name:    "test-service",
-		Address: "127.0.0.1",
-		Port:    8080,
+		ID:       "test-instance",
+		Name:     "test-service",
+		Address:  "127.0.0.1",
+		Port:     8080,
 		Metadata: map[string]string{"version": "1.0"},
 		Weight:   10,
 	}
@@ -394,12 +394,11 @@ func TestWeightedBalancer_PickDefaultWeight(t *testing.T) {
 	}
 }
 
-func TestNewResolver(t *testing.T) {
-	// EtcdRegistry 需要有效 etcd client，无法用空结构体测试
-	// 仅验证 NewResolver 函数签名正确
-	resolver := &Resolver{}
-	if resolver == nil {
-		t.Error("Resolver should not be nil")
+// TestResolverZeroValue 验证 Resolver 零值可用
+func TestResolverZeroValue(t *testing.T) {
+	var r Resolver
+	if r.registry != nil {
+		t.Error("zero-value Resolver should have nil registry")
 	}
 }
 

@@ -1,6 +1,7 @@
 package num
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand/v2"
@@ -15,13 +16,13 @@ func Min(nums ...int) int {
 	if len(nums) == 0 {
 		return 0
 	}
-	min := nums[0]
+	minVal := nums[0]
 	for _, num := range nums[1:] {
-		if num < min {
-			min = num
+		if num < minVal {
+			minVal = num
 		}
 	}
-	return min
+	return minVal
 }
 
 // MinFloat 求浮点数最小值
@@ -29,13 +30,13 @@ func MinFloat(nums ...float64) float64 {
 	if len(nums) == 0 {
 		return 0
 	}
-	min := nums[0]
+	minVal := nums[0]
 	for _, num := range nums[1:] {
-		if num < min {
-			min = num
+		if num < minVal {
+			minVal = num
 		}
 	}
-	return min
+	return minVal
 }
 
 // Max 求最大值
@@ -43,13 +44,13 @@ func Max(nums ...int) int {
 	if len(nums) == 0 {
 		return 0
 	}
-	max := nums[0]
+	maxVal := nums[0]
 	for _, num := range nums[1:] {
-		if num > max {
-			max = num
+		if num > maxVal {
+			maxVal = num
 		}
 	}
-	return max
+	return maxVal
 }
 
 // MaxFloat 求浮点数最大值
@@ -57,33 +58,33 @@ func MaxFloat(nums ...float64) float64 {
 	if len(nums) == 0 {
 		return 0
 	}
-	max := nums[0]
+	maxVal := nums[0]
 	for _, num := range nums[1:] {
-		if num > max {
-			max = num
+		if num > maxVal {
+			maxVal = num
 		}
 	}
-	return max
+	return maxVal
 }
 
 // Clamp 限制数值在指定范围内
-func Clamp(num, min, max int) int {
-	if num < min {
-		return min
+func Clamp(num, minValue, maxValue int) int {
+	if num < minValue {
+		return minValue
 	}
-	if num > max {
-		return max
+	if num > maxValue {
+		return maxValue
 	}
 	return num
 }
 
 // ClampFloat 限制浮点数在指定范围内
-func ClampFloat(num, min, max float64) float64 {
-	if num < min {
-		return min
+func ClampFloat(num, minValue, maxValue float64) float64 {
+	if num < minValue {
+		return minValue
 	}
-	if num > max {
-		return max
+	if num > maxValue {
+		return maxValue
 	}
 	return num
 }
@@ -104,7 +105,10 @@ func ToInt(v interface{}) (int, error) {
 	case int64:
 		return int(val), nil
 	case uint:
-		return int(val), nil
+		if uint64(val) > uint64(^uint(0)>>1) {
+			return 0, errors.New("uint value overflows int")
+		}
+		return int(val), nil //nolint:gosec // 上方已做溢出保护，gosec 数据流无法识别
 	case uint8:
 		return int(val), nil
 	case uint16:
@@ -112,7 +116,10 @@ func ToInt(v interface{}) (int, error) {
 	case uint32:
 		return int(val), nil
 	case uint64:
-		return int(val), nil
+		if val > uint64(^uint(0)>>1) {
+			return 0, errors.New("uint64 value overflows int")
+		}
+		return int(val), nil //nolint:gosec // 上方已做溢出保护，gosec 数据流无法识别
 	case float32:
 		return int(val), nil
 	case float64:
@@ -383,30 +390,34 @@ func AverageFloat(nums ...float64) float64 {
 
 // ==================== 随机数生成 ====================
 
-// RandomInt 生成指定范围内的随机整数 [min, max]
-func RandomInt(min, max int) int {
-	return rand.IntN(max-min+1) + min
+// RandomInt 生成指定范围内的随机整数 [minValue, maxValue]
+//
+//nolint:gosec // 伪随机为工具库定位（测试数据/抽样），非安全场景
+func RandomInt(minValue, maxValue int) int {
+	return rand.IntN(maxValue-minValue+1) + minValue
 }
 
-// RandomFloat 生成指定范围内的随机浮点数 [min, max)
-func RandomFloat(min, max float64) float64 {
-	return min + rand.Float64()*(max-min)
+// RandomFloat 生成指定范围内的随机浮点数 [minValue, maxValue)
+//
+//nolint:gosec // 伪随机为工具库定位（测试数据/抽样），非安全场景
+func RandomFloat(minValue, maxValue float64) float64 {
+	return minValue + rand.Float64()*(maxValue-minValue)
 }
 
 // RandomInts 生成指定数量的随机整数
-func RandomInts(count, min, max int) []int {
+func RandomInts(count, minValue, maxValue int) []int {
 	ints := make([]int, count)
 	for i := 0; i < count; i++ {
-		ints[i] = RandomInt(min, max)
+		ints[i] = RandomInt(minValue, maxValue)
 	}
 	return ints
 }
 
 // RandomFloats 生成指定数量的随机浮点数
-func RandomFloats(count int, min, max float64) []float64 {
+func RandomFloats(count int, minValue, maxValue float64) []float64 {
 	floats := make([]float64, count)
 	for i := 0; i < count; i++ {
-		floats[i] = RandomFloat(min, max)
+		floats[i] = RandomFloat(minValue, maxValue)
 	}
 	return floats
 }
@@ -456,7 +467,7 @@ func FromHex(s string) (int, error) {
 }
 
 // ToBase 转换为指定进制
-func ToBase(num int, base int) string {
+func ToBase(num, base int) string {
 	if base < 2 || base > 36 {
 		return ""
 	}

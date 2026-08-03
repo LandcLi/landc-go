@@ -29,7 +29,7 @@ func NewParser(args []string) *Parser {
 		supportedOptions: make(map[string]bool),
 		optionAliases:    make(map[string]string),
 	}
-	p.parse()
+	_ = p.parse()
 	return p
 }
 
@@ -82,6 +82,8 @@ func ParseWithArgs(args []string, supportedOptions map[string]bool, option ...Pa
 }
 
 // parse 解析命令行参数
+//
+//nolint:gocyclo // 参数解析状态机分支多，拆分收益低
 func (p *Parser) parse() error {
 	if len(p.args) < 1 {
 		return nil
@@ -130,9 +132,9 @@ func (p *Parser) parse() error {
 						p.setOptionValue(optName, "")
 					}
 				}
-			} else {
+			} else if len(arg) == 2 {
 				// 处理短选项 -o value
-				if len(arg) == 2 {
+				{
 					optName := string(arg[1])
 
 					// 检查选项是否支持

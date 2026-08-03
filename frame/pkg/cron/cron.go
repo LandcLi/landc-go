@@ -12,10 +12,10 @@ import (
 
 // Task 定时任务
 type Task struct {
-	Name     string
-	Spec     string // cron 表达式
-	Func     func(ctx context.Context) error
-	entryID  cron.EntryID
+	Name    string
+	Spec    string // cron 表达式
+	Func    func(ctx context.Context) error
+	entryID cron.EntryID
 }
 
 // Scheduler 定时任务调度器

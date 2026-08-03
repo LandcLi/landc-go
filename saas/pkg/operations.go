@@ -48,7 +48,6 @@ func (m *Manager) CreateData(ctx context.Context, tx *gorm.DB, dataType string, 
 // ShareData 共享数据给租户
 func (m *Manager) ShareData(ctx context.Context, tx *gorm.DB, dataType string, dataID, toTenantID uint64,
 	accessLevel int, expireAt *time.Time, constraints map[string]interface{}) error {
-
 	tenantID, err := m.getTenantFromContext(ctx)
 	if err != nil {
 		return err
@@ -222,7 +221,7 @@ func (m *Manager) GetDataAccessors(ctx context.Context, dataType string, dataID 
 // ListTenantData 列出租户可访问的所有数据（SQL 层分页，避免全量加载）
 // 拥有 + 共享 两个数据集 UNION 去重；表名取自模型常量（非用户输入），
 // dataType/tenantID/时间/分页参数均参数化绑定，防 SQL 注入。
-func (m *Manager) ListTenantData(ctx context.Context, dataType string, tenantID uint64, page, pageSize int) ([]uint64, int64, error) {
+func (m *Manager) ListTenantData(ctx context.Context, dataType string, tenantID uint64, page, pageSize int) (dataIDs []uint64, total int64, err error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -242,7 +241,6 @@ func (m *Manager) ListTenantData(ctx context.Context, dataType string, tenantID 
 	args := []interface{}{dataType, tenantID, dataType, tenantID, time.Now()}
 
 	// 1. 总数（UNION 已去重）
-	var total int64
 	if err := m.db.Session(&gorm.Session{NewDB: true}).
 		Raw("SELECT COUNT(*) FROM "+unionSub, args...).
 		Scan(&total).Error; err != nil {
@@ -250,7 +248,6 @@ func (m *Manager) ListTenantData(ctx context.Context, dataType string, tenantID 
 	}
 
 	// 2. 分页数据
-	var dataIDs []uint64
 	if err := m.db.Session(&gorm.Session{NewDB: true}).
 		Raw("SELECT data_id FROM "+unionSub+" ORDER BY data_id LIMIT ? OFFSET ?",
 			append(args, pageSize, (page-1)*pageSize)...).

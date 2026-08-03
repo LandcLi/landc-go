@@ -92,7 +92,7 @@ func ErrorWithDetails(c *gin.Context, code int, message string, details interfac
 }
 
 // ErrorWithHTTPStatus 带 HTTP 状态码的错误响应
-func ErrorWithHTTPStatus(c *gin.Context, httpStatus int, code int, message string) {
+func ErrorWithHTTPStatus(c *gin.Context, httpStatus, code int, message string) {
 	c.JSON(httpStatus, &core.Response{
 		Code:      code,
 		Message:   message,

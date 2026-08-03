@@ -12,19 +12,19 @@ import (
 // ============================================================
 
 type EdgeInfo struct {
-	TargetID     string
-	SourcePort   string // 源端口（条件分支用，如 "true"/"false"）
-	TargetPort   string // 目标端口
+	TargetID      string
+	SourcePort    string // 源端口（条件分支用，如 "true"/"false"）
+	TargetPort    string // 目标端口
 	ConditionExpr string
-	Label        string
+	Label         string
 }
 
 type DAGGraph struct {
-	workflow   *model.Workflow
-	adj        map[string][]*EdgeInfo
-	inDegree   map[string]int
-	nodeMap    map[string]*model.Node
-	rootNodes  []*model.Node // 缓存
+	workflow  *model.Workflow
+	adj       map[string][]*EdgeInfo
+	inDegree  map[string]int
+	nodeMap   map[string]*model.Node
+	rootNodes []*model.Node // 缓存
 }
 
 func NewDAGGraph(wf *model.Workflow) (*DAGGraph, error) {
@@ -90,7 +90,7 @@ func (g *DAGGraph) GetDownstream(nodeID string) []*EdgeInfo {
 // GetActivatedDownstream — 核心改进：根据节点输出解析条件分支。
 // 对于 condition/switch 节点，只激活 SourcePort 匹配的分支；
 // 对于普通节点，激活所有下游边（默认行为）。
-func (g *DAGGraph) GetActivatedDownstream(nodeID string, nodeOutput string) []*EdgeInfo {
+func (g *DAGGraph) GetActivatedDownstream(nodeID, nodeOutput string) []*EdgeInfo {
 	allEdges := g.adj[nodeID]
 	if len(allEdges) == 0 {
 		return nil
@@ -195,7 +195,7 @@ func (g *DAGGraph) TopologicalSort() ([]*model.Node, error) {
 }
 
 // detectCycle DFS 三色标记法环检测
-func (g *DAGGraph) detectCycle() (bool, []string) {
+func (g *DAGGraph) detectCycle() (bool, []string) { //nolint:gocritic // 命名返回值与 DFS 局部栈变量重名
 	const (
 		white = 0
 		gray  = 1

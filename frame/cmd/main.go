@@ -14,10 +14,13 @@ func main() {
 	app.Brief = "landc-go CLI tool for project management"
 	app.Description = "A command-line tool for managing landc-go projects, including initialization, code generation, and more."
 
-	app.AddCommand(
+	if err := app.AddCommand(
 		NewInitCommand(),
 		NewGenCommand(),
-	)
+	); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	if err := app.Run(ctx); err != nil {

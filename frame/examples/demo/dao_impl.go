@@ -3,17 +3,17 @@ package demo
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
-	"strings"
 	"time"
 )
 
 // MemoryUserDAO 内存实现的用户 DAO（仅用于演示）
 type MemoryUserDAO struct {
-	mu      sync.RWMutex
-	users   map[uint]*User
-	nextID  atomic.Uint64
+	mu     sync.RWMutex
+	users  map[uint]*User
+	nextID atomic.Uint64
 }
 
 func NewMemoryUserDAO() *MemoryUserDAO {

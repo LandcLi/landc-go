@@ -35,23 +35,23 @@ func UUIDv5(namespace uuid.UUID, name string) string {
 }
 
 // RandomInt 生成指定范围内的随机整数 [min, max]
-func RandomInt(min, max int) (int, error) {
-	if min > max {
+func RandomInt(minValue, maxValue int) (int, error) {
+	if minValue > maxValue {
 		return 0, fmt.Errorf("min cannot be greater than max")
 	}
 
-	bigMax := big.NewInt(int64(max - min + 1))
+	bigMax := big.NewInt(int64(maxValue - minValue + 1))
 	n, err := rand.Int(rand.Reader, bigMax)
 	if err != nil {
 		return 0, err
 	}
 
-	return min + int(n.Int64()), nil
+	return minValue + int(n.Int64()), nil
 }
 
 // MustRandomInt 生成指定范围内的随机整数，如果出错则 panic
-func MustRandomInt(min, max int) int {
-	val, err := RandomInt(min, max)
+func MustRandomInt(minValue, maxValue int) int {
+	val, err := RandomInt(minValue, maxValue)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +73,7 @@ func RandomString(length int, charsets ...string) (string, error) {
 		charset = strings.Join(charsets, "")
 	}
 
-	if len(charset) == 0 {
+	if charset == "" {
 		return "", fmt.Errorf("charset cannot be empty")
 	}
 
@@ -228,8 +228,8 @@ func MustRandomBool() bool {
 }
 
 // RandomFloat 生成指定范围内的随机浮点数 [min, max)
-func RandomFloat(min, max float64) (float64, error) {
-	if min > max {
+func RandomFloat(minValue, maxValue float64) (float64, error) {
+	if minValue > maxValue {
 		return 0, fmt.Errorf("min cannot be greater than max")
 	}
 
@@ -241,12 +241,12 @@ func RandomFloat(min, max float64) (float64, error) {
 	}
 
 	fraction := float64(n.Int64()) / 1000000000.0
-	return min + fraction*(max-min), nil
+	return minValue + fraction*(maxValue-minValue), nil
 }
 
 // MustRandomFloat 生成指定范围内的随机浮点数，如果出错则 panic
-func MustRandomFloat(min, max float64) float64 {
-	val, err := RandomFloat(min, max)
+func MustRandomFloat(minValue, maxValue float64) float64 {
+	val, err := RandomFloat(minValue, maxValue)
 	if err != nil {
 		panic(err)
 	}

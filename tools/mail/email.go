@@ -84,7 +84,7 @@ func (e *Email) SetHTMLBody(htmlBody string) *Email {
 }
 
 // AddAttachment 添加附件
-func (e *Email) AddAttachment(filename string, contentType string, content []byte) *Email {
+func (e *Email) AddAttachment(filename, contentType string, content []byte) *Email {
 	e.Attachments = append(e.Attachments, Attachment{
 		Filename:    filename,
 		ContentType: contentType,
@@ -179,7 +179,7 @@ func (e *Email) ToMIME() ([]byte, error) {
 				if err != nil {
 					return nil, err
 				}
-				textPart.Write([]byte(e.Body))
+				_, _ = textPart.Write([]byte(e.Body))
 			}
 
 			// HTML正文
@@ -190,15 +190,15 @@ func (e *Email) ToMIME() ([]byte, error) {
 				if err != nil {
 					return nil, err
 				}
-				htmlPart.Write([]byte(e.HTMLBody))
+				_, _ = htmlPart.Write([]byte(e.HTMLBody))
 			}
 		}
 
 		// 添加附件
 		for _, attachment := range e.Attachments {
 			part, err := writer.CreatePart(textproto.MIMEHeader{
-				"Content-Type":        {attachment.ContentType},
-				"Content-Disposition": {fmt.Sprintf("attachment; filename=\"%s\"", attachment.Filename)},
+				"Content-Type":              {attachment.ContentType},
+				"Content-Disposition":       {fmt.Sprintf("attachment; filename=%q", attachment.Filename)},
 				"Content-Transfer-Encoding": {"base64"},
 			})
 			if err != nil {
@@ -206,8 +206,8 @@ func (e *Email) ToMIME() ([]byte, error) {
 			}
 
 			encoder := base64.NewEncoder(base64.StdEncoding, part)
-			encoder.Write(attachment.Content)
-			encoder.Close()
+			_, _ = encoder.Write(attachment.Content) // 写入内存缓冲，错误可忽略
+			_ = encoder.Close()
 		}
 
 		writer.Close()
@@ -285,6 +285,8 @@ func ParseMIME(data []byte) (*Email, error) {
 }
 
 // getContentType 根据文件名获取内容类型
+//
+//nolint:gocyclo // 扩展名映射为线性 switch，拆分反而不清晰
 func getContentType(filename string) string {
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {

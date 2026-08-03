@@ -34,6 +34,10 @@
 - **saas `DataAccess.CheckConstraint` 实现**：消除"宣称校验但直接返回 true"的预留桩；约束解析/校验逻辑下沉到 `model` 包（`model.ParseConstraint`/`model.ValidateConstraint`），`saas/pkg` 层委托保持 API 兼容；非法约束 JSON 保守拒绝（fail-closed）
 - **workflow README 能力矩阵对齐**：SCRIPT 节点标注为 JS（goja）而非"JS/Python"；SUB_WORKFLOW 明确标注"规划中"而非宣称支持
 - **示例补齐**：`log/`、`tools/`、`saas/` 新增 `examples/`（均已验证可编译可运行）
+- **golangci-lint 全量清零**：6 个模块 0 error。修复 80+ 处 lint 问题（gofmt/gocritic/staticcheck/gosec/errcheck/misspell 等），含 2 个真实缺陷：
+  - `converter` uint/uint64 → int64 转换缺少溢出检查（G115）
+  - `tag` Min/Max 验证器负数阈值导致 uint 比较失效（负数被转成超大无符号值，校验被绕过）
+- CI security job 与本地 lint 配置统一（golangci-lint v1.64.8，`gosec`/`gocyclo` 已启用）
 - workflow 测试覆盖补强：condition/input/output 节点、幂等检查器（含并发安全）、MemoryStore CRUD/乐观锁/pending/worker/并发安全
 - 修复 `MemoryIdempotencyChecker` 并发写 map 的数据竞争（加 RWMutex）
 - CI security job 固定 gosec action 版本（`@master` → `@v2.22.2`）保证可复现

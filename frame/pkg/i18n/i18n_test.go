@@ -41,8 +41,8 @@ func TestTranslator_Basic(t *testing.T) {
 func TestTranslator_Fallback(t *testing.T) {
 	tr := New("en")
 	tr.Register("en", map[string]string{
-		"hello":    "Hello",
-		"only_en":  "Only in English",
+		"hello":   "Hello",
+		"only_en": "Only in English",
 	})
 	tr.Register("zh-CN", map[string]string{
 		"hello": "你好",
@@ -76,11 +76,11 @@ func TestTranslator_LoadDir(t *testing.T) {
 
 	// 创建 JSON 文件
 	enJSON := `{"greeting": {"hello": "Hello", "bye": "Goodbye"}, "error": "Error occurred"}`
-	os.WriteFile(filepath.Join(tmpDir, "en.json"), []byte(enJSON), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "en.json"), []byte(enJSON), 0o600)
 
 	// 创建 YAML 文件
 	zhYAML := "greeting:\n  hello: 你好\n  bye: 再见\nerror: 发生错误\n"
-	os.WriteFile(filepath.Join(tmpDir, "zh-CN.yaml"), []byte(zhYAML), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "zh-CN.yaml"), []byte(zhYAML), 0o600)
 
 	tr := New("en")
 	if err := tr.LoadDir(tmpDir); err != nil {
@@ -127,7 +127,7 @@ func TestMiddleware_AcceptLanguage(t *testing.T) {
 
 	// 测试 Accept-Language: zh-CN
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	r.ServeHTTP(w, req)
 	if w.Body.String() != "你好" {
@@ -136,7 +136,7 @@ func TestMiddleware_AcceptLanguage(t *testing.T) {
 
 	// 测试 query 参数 ?lang=en
 	w2 := httptest.NewRecorder()
-	req2, _ := http.NewRequest("GET", "/test?lang=en", nil)
+	req2, _ := http.NewRequest("GET", "/test?lang=en", http.NoBody)
 	r.ServeHTTP(w2, req2)
 	if w2.Body.String() != "Hello" {
 		t.Errorf("expected 'Hello', got '%s'", w2.Body.String())
@@ -157,7 +157,7 @@ func TestMiddleware_XLanguageHeader(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequest("GET", "/test", http.NoBody)
 	req.Header.Set("X-Language", "zh-CN")
 	r.ServeHTTP(w, req)
 	if w.Body.String() != "你好" {

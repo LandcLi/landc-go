@@ -105,16 +105,11 @@ func Dial(config ClientConfig) (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithChainStreamInterceptor(config.StreamInterceptors...))
 	}
 
-	ctx := context.Background()
-	if config.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, config.Timeout)
-		defer cancel()
-	}
-
-	conn, err := grpc.DialContext(ctx, config.Target, opts...)
+	// grpc.NewClient 为惰性连接（首个 RPC 时建立），不再需要显式超时 ctx。
+	// 如需连接超时控制，通过 opts 传入 grpc.WithConnectParams 或 WithBlock + WithReturnConnectionError。
+	conn, err := grpc.NewClient(config.Target, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial %s: %w", config.Target, err)
+		return nil, fmt.Errorf("failed to create client for %s: %w", config.Target, err)
 	}
 	return conn, nil
 }

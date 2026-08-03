@@ -228,7 +228,7 @@ func CopyFields(src []Field) []Field {
 }
 
 // MergeFields 安全合并两组字段，返回新切片
-func MergeFields(base []Field, extra []Field) []Field {
+func MergeFields(base, extra []Field) []Field {
 	result := make([]Field, 0, len(base)+len(extra))
 	result = append(result, base...)
 	result = append(result, extra...)
@@ -247,7 +247,7 @@ func SafeLimitMessageSize(msg string, maxMessageSizeKB int) string {
 	// 安全截断：确保不会截断 UTF-8 多字节字符的中间
 	truncated := msg[:maxSize-3]
 	// 如果最后一个字符是不完整的 UTF-8 序列，向前回退
-	for len(truncated) > 0 && !utf8.ValidString(truncated) {
+	for truncated != "" && !utf8.ValidString(truncated) {
 		truncated = truncated[:len(truncated)-1]
 	}
 	return truncated + "..."

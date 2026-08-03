@@ -169,7 +169,7 @@ func TestServeFile(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "download.txt")
-	os.WriteFile(testFile, []byte("download content"), 0644)
+	_ = os.WriteFile(testFile, []byte("download content"), 0o600)
 
 	r := gin.New()
 	r.GET("/download", func(c *gin.Context) {
@@ -177,7 +177,7 @@ func TestServeFile(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/download", nil)
+	req, _ := http.NewRequest("GET", "/download", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
@@ -204,7 +204,7 @@ func TestServeFile_NotFound(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/download", nil)
+	req, _ := http.NewRequest("GET", "/download", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != 404 {

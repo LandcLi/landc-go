@@ -179,8 +179,8 @@ func TestHub_JoinRoom(t *testing.T) {
 	hub.Run()
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -199,8 +199,8 @@ func TestHub_LeaveRoom(t *testing.T) {
 	hub.Run()
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -221,8 +221,8 @@ func TestHub_GetConn(t *testing.T) {
 	hub.Run()
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -248,8 +248,8 @@ func TestHub_ConnCount(t *testing.T) {
 	}
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -270,8 +270,8 @@ func TestHub_RoomCount(t *testing.T) {
 	}
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		rooms: make(map[string]bool),
 	}
 
@@ -288,8 +288,8 @@ func TestHub_SendTo(t *testing.T) {
 	hub.Run()
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
+		ID:    "conn_1",
+		hub:   hub,
 		send:  make(chan []byte, 256),
 		rooms: make(map[string]bool),
 	}
@@ -324,8 +324,8 @@ func TestHub_SendTo_NotFound(t *testing.T) {
 
 func TestConn_Send(t *testing.T) {
 	conn := &Conn{
-		ID:   "conn_1",
-		send: make(chan []byte, 256),
+		ID:    "conn_1",
+		send:  make(chan []byte, 256),
 		rooms: make(map[string]bool),
 	}
 
@@ -346,8 +346,8 @@ func TestConn_Send(t *testing.T) {
 
 func TestConn_SendText(t *testing.T) {
 	conn := &Conn{
-		ID:   "conn_1",
-		send: make(chan []byte, 256),
+		ID:    "conn_1",
+		send:  make(chan []byte, 256),
 		rooms: make(map[string]bool),
 	}
 
@@ -403,9 +403,9 @@ func TestConn_Rooms(t *testing.T) {
 
 func TestUpgrader_ToGorilla(t *testing.T) {
 	upgrader := &Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin:     func(r *http.Request) bool { return true },
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+		CheckOrigin:      func(r *http.Request) bool { return true },
 		HandshakeTimeout: 5 * time.Second,
 	}
 
@@ -478,9 +478,9 @@ func TestHub_Concurrent(t *testing.T) {
 		go func(index int) {
 			defer wg.Done()
 			conn := &Conn{
-				ID:   string(rune('A' + index)),
-				hub:  hub,
-				send: make(chan []byte, 256),
+				ID:    string(rune('A' + index)),
+				hub:   hub,
+				send:  make(chan []byte, 256),
 				rooms: make(map[string]bool),
 			}
 			hub.register <- conn
@@ -518,9 +518,9 @@ func TestFullWebSocketFlow(t *testing.T) {
 	hub.Run()
 
 	conn := &Conn{
-		ID:   "conn_1",
-		hub:  hub,
-		send: make(chan []byte, 256),
+		ID:    "conn_1",
+		hub:   hub,
+		send:  make(chan []byte, 256),
 		rooms: make(map[string]bool),
 	}
 

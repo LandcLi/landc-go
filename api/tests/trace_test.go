@@ -23,7 +23,7 @@ func TestNewTrace(t *testing.T) {
 
 func TestExtractFromRequest(t *testing.T) {
 	// 测试从没有TraceID的请求中提取
-	req, err := http.NewRequest("GET", "/api/hello", nil)
+	req, err := http.NewRequest("GET", "/api/hello", http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestExtractFromRequest(t *testing.T) {
 
 func TestInjectToRequest(t *testing.T) {
 	traceObj := trace.NewTrace()
-	req, err := http.NewRequest("GET", "/api/hello", nil)
+	req, err := http.NewRequest("GET", "/api/hello", http.NoBody)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}

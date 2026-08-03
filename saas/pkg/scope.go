@@ -104,8 +104,8 @@ func (m *Manager) TenantScopeWithChildren(ctx context.Context, dataType string) 
 
 		tenantIDs := make([]uint64, len(childTenants)+1)
 		tenantIDs[0] = tenantID
-		for i, t := range childTenants {
-			tenantIDs[i+1] = t.ID
+		for i := range childTenants {
+			tenantIDs[i+1] = childTenants[i].ID
 		}
 
 		// 3. 查询这些租户拥有的数据
@@ -118,7 +118,7 @@ func (m *Manager) TenantScopeWithChildren(ctx context.Context, dataType string) 
 }
 
 // TenantScopeWithConstraint 查询带约束的数据
-func (m *Manager) TenantScopeWithConstraint(ctx context.Context, dataType string) func(db *gorm.DB) *gorm.DB {
+func (m *Manager) TenantScopeWithConstraint(ctx context.Context, dataType string) func(db *gorm.DB) *gorm.DB { //nolint:gocyclo // 约束操作符分派为线性 switch，拆分收益低
 	return func(db *gorm.DB) *gorm.DB {
 		tenantID, err := m.getTenantFromContext(ctx)
 		if err != nil {
@@ -140,7 +140,8 @@ func (m *Manager) TenantScopeWithConstraint(ctx context.Context, dataType string
 
 		// 2. 构建ID列表（需要根据约束过滤）
 		validIDs := make([]uint64, 0)
-		for _, access := range accesses {
+		for i := range accesses {
+			access := &accesses[i]
 			if access.Constraints == "" {
 				// 无约束，直接添加
 				validIDs = append(validIDs, access.DataID)

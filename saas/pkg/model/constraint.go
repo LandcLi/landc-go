@@ -17,7 +17,7 @@ func ParseConstraint(constraintStr string) (map[string]interface{}, error) {
 }
 
 // ValidateConstraint 验证数据是否满足约束条件
-func ValidateConstraint(data map[string]interface{}, constraint map[string]interface{}) bool {
+func ValidateConstraint(data, constraint map[string]interface{}) bool {
 	for key, expected := range constraint {
 		actual, ok := data[key]
 		if !ok {

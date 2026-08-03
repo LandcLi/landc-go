@@ -104,16 +104,6 @@ func (e *Engine) saveDAGSnapshot(execID string, completed map[string]bool, vars 
 	e.runningMu.Unlock()
 }
 
-// getDAGSnapshot 获取 DAG 快照
-func (e *Engine) getDAGSnapshot(execID string) *dagSnapshot {
-	e.runningMu.RLock()
-	defer e.runningMu.RUnlock()
-	if r, ok := e.running[execID]; ok {
-		return r.snapshot
-	}
-	return nil
-}
-
 // ============================================================
 // 2. 人类输入 (HumanInput)
 // ============================================================

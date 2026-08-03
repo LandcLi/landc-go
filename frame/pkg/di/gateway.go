@@ -278,7 +278,7 @@ type proxyDispatcher struct {
 
 // call makes an HTTP request to the remote service.
 // It dynamically resolves the route (path + method) from the request struct's meta.Meta tag.
-func (p *proxyDispatcher) call(ctx context.Context, methodName string, req interface{}, respPtr interface{}) error {
+func (p *proxyDispatcher) call(ctx context.Context, methodName string, req, respPtr interface{}) error {
 	// Dynamically resolve route from request struct's meta.Meta tag
 	reqValue := reflect.ValueOf(req)
 	reqType := reqValue.Type()
@@ -310,7 +310,7 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req inter
 	var httpReq *http.Request
 	var err error
 	if httpMethod == "GET" {
-		httpReq, err = http.NewRequestWithContext(ctx, httpMethod, url, nil)
+		httpReq, err = http.NewRequestWithContext(ctx, httpMethod, url, http.NoBody)
 	} else {
 		data, marshalErr := json.Marshal(req)
 		if marshalErr != nil {

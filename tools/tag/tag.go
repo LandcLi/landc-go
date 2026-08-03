@@ -179,14 +179,14 @@ func GetTagOption(field reflect.StructField, tagName, optionName string) string 
 	return tag.Options[optionName]
 }
 
-func Build(name string, value string) string {
+func Build(name, value string) string {
 	if value == "" {
 		return name
 	}
 	return fmt.Sprintf("%s:%s", name, value)
 }
 
-func BuildWithOptions(name string, value string, options map[string]string) string {
+func BuildWithOptions(name, value string, options map[string]string) string {
 	result := Build(name, value)
 
 	if len(options) > 0 {
@@ -265,12 +265,12 @@ func BuildOptionalTag() string {
 	return OptionalTag
 }
 
-func BuildMinTag(min int) string {
-	return fmt.Sprintf("%s=%d", MinTag, min)
+func BuildMinTag(minValue int) string {
+	return fmt.Sprintf("%s=%d", MinTag, minValue)
 }
 
-func BuildMaxTag(max int) string {
-	return fmt.Sprintf("%s=%d", MaxTag, max)
+func BuildMaxTag(maxValue int) string {
+	return fmt.Sprintf("%s=%d", MaxTag, maxValue)
 }
 
 func BuildLengthTag(length int) string {

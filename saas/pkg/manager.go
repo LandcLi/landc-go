@@ -13,7 +13,7 @@ import (
 type Config struct {
 	EnableHierarchy  bool          // 是否启用层级
 	EnableConstraint bool          // 是否启用约束
-	CleanupInterval time.Duration // 清理过期访问记录的间隔（0=不清理）
+	CleanupInterval  time.Duration // 清理过期访问记录的间隔（0=不清理）
 }
 
 // Manager SaaS管理器（无状态，并发安全）

@@ -100,13 +100,16 @@ func GinMiddlewareWithConfig(config *GinMiddlewareConfig) gin.HandlerFunc {
 		if err != nil {
 			blw.ResponseWriter.Header().Set("Content-Type", "application/json")
 			blw.ResponseWriter.WriteHeader(http.StatusInternalServerError)
-			blw.ResponseWriter.Write([]byte(`{"code":50000,"message":"internal server error","trace_id":"` + t.TraceID + `"}`))
+			_, _ = blw.ResponseWriter.WriteString(`{"code":50000,"message":"internal server error","trace_id":"` + t.TraceID + `"}`)
 			return
 		}
 
 		blw.ResponseWriter.Header().Set("Content-Type", "application/json")
 		blw.ResponseWriter.WriteHeader(http.StatusOK)
-		blw.ResponseWriter.Write(respJSON)
+		// 响应体写入失败时连接已不可用，记录到日志后交由上层处理
+		if _, err := blw.ResponseWriter.Write(respJSON); err != nil {
+			c.Error(err) //nolint:errcheck // gin 的 Error 仅用于记录，忽略其返回值
+		}
 	}
 }
 

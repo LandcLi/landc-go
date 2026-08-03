@@ -79,6 +79,7 @@ func (v *landcToolsValidator) validateWithLandcTools(field reflect.StructField, 
 	return nil
 }
 
+//nolint:gocyclo // 验证器分派为线性 switch，拆分收益低
 func (v *landcToolsValidator) validateWithTag(t *tag.Tag, value interface{}) error {
 	switch t.Name {
 	case "required":
@@ -103,13 +104,13 @@ func (v *landcToolsValidator) validateWithTag(t *tag.Tag, value interface{}) err
 		validator := &tag.Password2Validator{}
 		return validator.Validate(value)
 	case "min":
-		if min, err := strconv.Atoi(t.Value); err == nil {
-			validator := &tag.MinValidator{Min: min}
+		if minVal, err := strconv.Atoi(t.Value); err == nil {
+			validator := &tag.MinValidator{Min: minVal}
 			return validator.Validate(value)
 		}
 	case "max":
-		if max, err := strconv.Atoi(t.Value); err == nil {
-			validator := &tag.MaxValidator{Max: max}
+		if maxVal, err := strconv.Atoi(t.Value); err == nil {
+			validator := &tag.MaxValidator{Max: maxVal}
 			return validator.Validate(value)
 		}
 	case "length":
@@ -189,6 +190,7 @@ func parseParamMeta(field reflect.StructField) (*ParamMeta, error) {
 	return meta, nil
 }
 
+//nolint:gocyclo // 参数来源/类型分派分支多，拆分收益低
 func parseParamsFromContext(c *gin.Context, paramType reflect.Type) ([]reflect.Value, error) {
 	if paramType.Kind() == reflect.Ptr {
 		paramType = paramType.Elem()
@@ -354,19 +356,6 @@ func setFromHeader(c *gin.Context, name string, field reflect.Value) error {
 func setFromForm(c *gin.Context, name string, field reflect.Value) error {
 	value := c.PostForm(name)
 	return setFieldValue(field, value)
-}
-
-func setFromBody(c *gin.Context, field reflect.Value) error {
-	if field.Kind() == reflect.Ptr {
-		field.Set(reflect.New(field.Type().Elem()))
-		field = field.Elem()
-	}
-
-	if err := c.ShouldBind(field.Addr().Interface()); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func setFieldValue(field reflect.Value, value string) error {

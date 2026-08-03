@@ -55,11 +55,11 @@ func typeString(expr ast.Expr) string {
 
 // methodType extracts the method signature from a field in an interface.
 type methodType struct {
-	Name       string
-	Params     string // parameter list as string
-	Results    string // return list as string
-	ReqType    string // request type expression
-	RespType   string // response type expression
+	Name     string
+	Params   string // parameter list as string
+	Results  string // return list as string
+	ReqType  string // request type expression
+	RespType string // response type expression
 }
 
 // checkTypeRefs checks if a type expression references any import aliases.
@@ -102,6 +102,8 @@ func readModuleName(modDir string) (string, error) {
 }
 
 // Generate generates proxy code for the given interface.
+//
+//nolint:gocyclo // 生成器配置/解析/输出分派分支多，拆分会破坏流程完整性
 func Generate(cfg Config) error {
 	dir := cfg.Dir
 	if dir == "" {
@@ -119,6 +121,7 @@ func Generate(cfg Config) error {
 		return fmt.Errorf("parse directory %s: %w", dir, err)
 	}
 
+	//nolint:staticcheck // 生成器仅需语法树，无需 go/types 类型检查
 	var pkg *ast.Package
 	for _, p := range pkgs {
 		pkg = p
@@ -230,10 +233,6 @@ func Generate(cfg Config) error {
 	// Determine output file path
 	outputPath := cfg.Output
 	if outputPath == "" {
-		sdkPkgName := cfg.SdkPkgName
-		if sdkPkgName == "" {
-			sdkPkgName = "sdk"
-		}
 		outDir := cfg.OutDir
 		if outDir == "" {
 			if modDir := findGoModDir(dir); modDir != "" {
@@ -242,7 +241,9 @@ func Generate(cfg Config) error {
 				outDir = filepath.Join(dir, "..", "sdk")
 			}
 		}
-		os.MkdirAll(outDir, 0755)
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			return fmt.Errorf("create out dir: %w", err)
+		}
 		// Use lowercase interface name for the file
 		fileName := strings.ToLower(cfg.InterfaceName[:1]) + cfg.InterfaceName[1:] + "_proxy_gen.go"
 		outputPath = filepath.Join(outDir, fileName)
@@ -293,9 +294,9 @@ import (
 	for alias := range usedAliases {
 		if path, ok := importAliases[alias]; ok {
 			if alias == filepath.Base(path) {
-				buf.WriteString(fmt.Sprintf("\t\"%s\"\n", path))
+				buf.WriteString(fmt.Sprintf("\t%q\n", path))
 			} else {
-				buf.WriteString(fmt.Sprintf("\t%s \"%s\"\n", alias, path))
+				buf.WriteString(fmt.Sprintf("\t%s %q\n", alias, path))
 			}
 		}
 	}
@@ -322,9 +323,7 @@ import (
 	// Methods
 	for _, m := range ifaceMethods {
 		callRespType := m.RespType
-		if strings.HasPrefix(callRespType, "*") {
-			callRespType = callRespType[1:]
-		}
+		callRespType = strings.TrimPrefix(callRespType, "*")
 		buf.WriteString(fmt.Sprintf(`func (p *%s) %s(%s) (%s) {
 	return di.Call[%s](p.client, ctx, "%s", req)
 }
@@ -334,10 +333,10 @@ import (
 
 	code := buf.String()
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if err := os.WriteFile(outputPath, []byte(code), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(code), 0o600); err != nil {
 		return fmt.Errorf("write output file %s: %w", outputPath, err)
 	}
 

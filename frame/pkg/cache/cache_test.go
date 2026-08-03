@@ -206,8 +206,8 @@ func TestRedisCache_GetObject(t *testing.T) {
 	ctx := context.Background()
 
 	type TestStruct struct {
-		Name  string `json:"name"`
-		Age   int    `json:"age"`
+		Name string `json:"name"`
+		Age  int    `json:"age"`
 	}
 
 	obj := &TestStruct{Name: "Alice", Age: 30}
@@ -236,8 +236,8 @@ func TestRedisCache_SetObject(t *testing.T) {
 	ctx := context.Background()
 
 	type TestStruct struct {
-		Name  string `json:"name"`
-		Age   int    `json:"age"`
+		Name string `json:"name"`
+		Age  int    `json:"age"`
 	}
 
 	obj := &TestStruct{Name: "Bob", Age: 25}

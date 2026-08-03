@@ -136,7 +136,7 @@ func (r *EtcdRegistry) Deregister(ctx context.Context, instance *ServiceInstance
 	r.mu.Unlock()
 
 	if ok {
-		r.client.Revoke(ctx, leaseID)
+		_, _ = r.client.Revoke(ctx, leaseID)
 	}
 	_, err := r.client.Delete(ctx, key)
 	return err
@@ -180,7 +180,7 @@ func (r *EtcdRegistry) Watch(ctx context.Context, name string) (Watcher, error) 
 func (r *EtcdRegistry) Close() error {
 	r.mu.Lock()
 	for _, leaseID := range r.leases {
-		r.client.Revoke(context.Background(), leaseID)
+		_, _ = r.client.Revoke(context.Background(), leaseID)
 	}
 	r.leases = make(map[string]clientv3.LeaseID)
 	r.mu.Unlock()
@@ -284,7 +284,7 @@ func (b *WeightedBalancer) Pick(instances []*ServiceInstance) *ServiceInstance {
 			return inst
 		}
 	}
-	return instances[0]
+	return instances[0] //nolint:gosec // 函数入口已有 len(instances)==0 检查
 }
 
 // --- Resolver 服务解析器 ---

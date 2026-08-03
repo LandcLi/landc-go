@@ -44,10 +44,10 @@ func DefaultSchedulerConfig() SchedulerConfig {
 }
 
 type Scheduler struct {
-	dbStore  store.Store
-	engine   *engine.Engine
-	etcdReg  registry.Registry // 复用 frame/pkg/registry 的 etcd 注册中心
-	logger   facade.Logger
+	dbStore store.Store
+	engine  *engine.Engine
+	etcdReg registry.Registry // 复用 frame/pkg/registry 的 etcd 注册中心
+	logger  facade.Logger
 
 	workerID  string
 	workerGrp string
@@ -59,7 +59,7 @@ type Scheduler struct {
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 
-	config   SchedulerConfig
+	config SchedulerConfig
 }
 
 func NewScheduler(
@@ -75,13 +75,13 @@ func NewScheduler(
 		workerID = fmt.Sprintf("wf-worker-%d", time.Now().UnixNano())
 	}
 	return &Scheduler{
-		dbStore:  dbStore,
-		engine:   eng,
-		etcdReg:  etcdReg,
-		logger:   facade.GetLoggerWithName("workflow.scheduler"),
-		workerID: workerID,
+		dbStore:   dbStore,
+		engine:    eng,
+		etcdReg:   etcdReg,
+		logger:    facade.GetLoggerWithName("workflow.scheduler"),
+		workerID:  workerID,
 		workerGrp: group,
-		address:  address,
+		address:   address,
 		config:    config,
 	}
 }

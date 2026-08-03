@@ -15,7 +15,7 @@ func TestNewServer(t *testing.T) {
 	cfg := ServerConfig{
 		Address:        ":50051",
 		MaxRecvMsgSize: 10 * 1024 * 1024,
-		MaxSendMsgSize:  10 * 1024 * 1024,
+		MaxSendMsgSize: 10 * 1024 * 1024,
 	}
 
 	server := NewServer(cfg)
@@ -82,9 +82,9 @@ func TestServer_Stop(t *testing.T) {
 
 func TestDial(t *testing.T) {
 	cfg := ClientConfig{
-		Target:    "localhost:50051",
-		Insecure:  true,
-		Timeout:   5 * time.Second,
+		Target:   "localhost:50051",
+		Insecure: true,
+		Timeout:  5 * time.Second,
 	}
 
 	conn, err := Dial(cfg)
@@ -239,9 +239,9 @@ func TestNewConnPool(t *testing.T) {
 
 func TestConnPool_Get(t *testing.T) {
 	cfg := ClientConfig{
-		Target:    "localhost:50051",
-		Insecure:  true,
-		Timeout:   5 * time.Second,
+		Target:   "localhost:50051",
+		Insecure: true,
+		Timeout:  5 * time.Second,
 	}
 
 	pool := NewConnPool(cfg, nil)
@@ -260,9 +260,9 @@ func TestConnPool_GetWithResolver(t *testing.T) {
 
 func TestConnPool_Close(t *testing.T) {
 	cfg := ClientConfig{
-		Target:    "localhost:50051",
-		Insecure:  true,
-		Timeout:   5 * time.Second,
+		Target:   "localhost:50051",
+		Insecure: true,
+		Timeout:  5 * time.Second,
 	}
 
 	pool := NewConnPool(cfg, nil)
@@ -288,9 +288,9 @@ func TestConnPool_Close(t *testing.T) {
 
 func TestConnPool_Concurrent(t *testing.T) {
 	cfg := ClientConfig{
-		Target:    "localhost:50051",
-		Insecure:  true,
-		Timeout:   2 * time.Second,
+		Target:   "localhost:50051",
+		Insecure: true,
+		Timeout:  2 * time.Second,
 	}
 
 	pool := NewConnPool(cfg, nil)
@@ -352,9 +352,9 @@ func TestInterceptorChain(t *testing.T) {
 
 func TestConnPool_ReuseConnection(t *testing.T) {
 	cfg := ClientConfig{
-		Target:    "localhost:50051",
-		Insecure:  true,
-		Timeout:   5 * time.Second,
+		Target:   "localhost:50051",
+		Insecure: true,
+		Timeout:  5 * time.Second,
 	}
 
 	pool := NewConnPool(cfg, nil)
@@ -393,9 +393,9 @@ func TestGrpc_Integration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	clientCfg := ClientConfig{
-		Target:    "localhost:50054",
-		Insecure:  true,
-		Timeout:   5 * time.Second,
+		Target:   "localhost:50054",
+		Insecure: true,
+		Timeout:  5 * time.Second,
 	}
 
 	conn, err := Dial(clientCfg)
@@ -441,8 +441,8 @@ func TestServer_WithInterceptors(t *testing.T) {
 	timeoutInterceptor := TimeoutUnaryServerInterceptor(5 * time.Second)
 
 	cfg := ServerConfig{
-		Address:            ":50055",
-		UnaryInterceptors:  []grpc.UnaryServerInterceptor{traceInterceptor, recoveryInterceptor, timeoutInterceptor},
+		Address:           ":50055",
+		UnaryInterceptors: []grpc.UnaryServerInterceptor{traceInterceptor, recoveryInterceptor, timeoutInterceptor},
 	}
 
 	server := NewServer(cfg)
@@ -471,7 +471,7 @@ func TestClient_WithInterceptors(t *testing.T) {
 	if err != nil {
 		t.Skip("gRPC server not available, skipping test")
 	}
-	defer conn.Close()
+	_ = conn.Close()
 }
 
 func TestGrpc_ContextPropagation(t *testing.T) {

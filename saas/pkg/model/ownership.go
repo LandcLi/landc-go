@@ -6,9 +6,9 @@ import "time"
 // 记录数据的拥有者，一条数据只能有一个拥有者
 type DataOwnership struct {
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	DataID    uint64    `gorm:"not null;index:idx_ownership_data" json:"data_id"`       // 数据ID
+	DataID    uint64    `gorm:"not null;index:idx_ownership_data" json:"data_id"`                    // 数据ID
 	DataType  string    `gorm:"type:varchar(50);not null;index:idx_ownership_data" json:"data_type"` // 数据类型（表名）
-	OwnerID   uint64    `gorm:"not null;index:idx_owner" json:"owner_id"`    // 拥有者租户ID
+	OwnerID   uint64    `gorm:"not null;index:idx_owner" json:"owner_id"`                            // 拥有者租户ID
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

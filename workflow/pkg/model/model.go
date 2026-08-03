@@ -36,26 +36,26 @@ func (w *Workflow) IsValid() bool {
 }
 
 type Node struct {
-	ID                string           `gorm:"primaryKey;size:64;comment:节点ID" json:"id"`
-	WorkflowID        string           `gorm:"size:64;not null;index;comment:所属工作流ID" json:"workflow_id"`
-	Name              string           `gorm:"size:256;not null;comment:节点名称" json:"name"`
-	Type              NodeType         `gorm:"size:32;not null;comment:节点类型" json:"type"`
-	Description       string           `gorm:"size:1024;comment:描述" json:"description,omitempty"`
-	Timeout           int64            `gorm:"comment:节点超时(秒)" json:"timeout"`
-	MaxRetries        int              `gorm:"not null;default:0;comment:重试次数" json:"max_retries"`
-	RetryDelay        int64            `gorm:"not null;default:0;comment:重试间隔(秒)" json:"retry_delay"`
-	RetryMode         string           `gorm:"size:32;not null;default:LINEAR;comment:重试模式: LINEAR/EXPONENTIAL" json:"retry_mode"`
-	RetryMaxDelay     int64            `gorm:"not null;default:300;comment:最大重试延迟(秒)" json:"retry_max_delay"`
-	SkipOnFailure     bool             `gorm:"not null;default:false;comment:失败时跳过" json:"skip_on_failure"`
-	Config            json.RawMessage  `gorm:"type:text;comment:节点配置(JSON)" json:"config,omitempty"`
-	InputMapping      json.RawMessage  `gorm:"type:text;comment:输入映射(JSON)" json:"input_mapping,omitempty"`
-	OutputMapping     json.RawMessage  `gorm:"type:text;comment:输出映射(JSON)" json:"output_mapping,omitempty"`
-	ConditionExpr     string           `gorm:"size:1024;comment:条件表达式" json:"condition_expr,omitempty"`
-	ParallelBranches  int              `gorm:"not null;default:1;comment:并行分支数" json:"parallel_branches"`
-	OutputSchema      json.RawMessage  `gorm:"type:text;comment:输出模式(JSON Schema,变量选择器用)" json:"output_schema,omitempty"`
-	OrderNo           int              `gorm:"not null;default:0;comment:排序号" json:"order_no"`
-	CreatedAt         time.Time        `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt         time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
+	ID               string          `gorm:"primaryKey;size:64;comment:节点ID" json:"id"`
+	WorkflowID       string          `gorm:"size:64;not null;index;comment:所属工作流ID" json:"workflow_id"`
+	Name             string          `gorm:"size:256;not null;comment:节点名称" json:"name"`
+	Type             NodeType        `gorm:"size:32;not null;comment:节点类型" json:"type"`
+	Description      string          `gorm:"size:1024;comment:描述" json:"description,omitempty"`
+	Timeout          int64           `gorm:"comment:节点超时(秒)" json:"timeout"`
+	MaxRetries       int             `gorm:"not null;default:0;comment:重试次数" json:"max_retries"`
+	RetryDelay       int64           `gorm:"not null;default:0;comment:重试间隔(秒)" json:"retry_delay"`
+	RetryMode        string          `gorm:"size:32;not null;default:LINEAR;comment:重试模式: LINEAR/EXPONENTIAL" json:"retry_mode"`
+	RetryMaxDelay    int64           `gorm:"not null;default:300;comment:最大重试延迟(秒)" json:"retry_max_delay"`
+	SkipOnFailure    bool            `gorm:"not null;default:false;comment:失败时跳过" json:"skip_on_failure"`
+	Config           json.RawMessage `gorm:"type:text;comment:节点配置(JSON)" json:"config,omitempty"`
+	InputMapping     json.RawMessage `gorm:"type:text;comment:输入映射(JSON)" json:"input_mapping,omitempty"`
+	OutputMapping    json.RawMessage `gorm:"type:text;comment:输出映射(JSON)" json:"output_mapping,omitempty"`
+	ConditionExpr    string          `gorm:"size:1024;comment:条件表达式" json:"condition_expr,omitempty"`
+	ParallelBranches int             `gorm:"not null;default:1;comment:并行分支数" json:"parallel_branches"`
+	OutputSchema     json.RawMessage `gorm:"type:text;comment:输出模式(JSON Schema,变量选择器用)" json:"output_schema,omitempty"`
+	OrderNo          int             `gorm:"not null;default:0;comment:排序号" json:"order_no"`
+	CreatedAt        time.Time       `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (n *Node) TableName() string { return "wf_nodes" }
@@ -126,25 +126,25 @@ func (e *Execution) CanTransition(target ExecutionStatus) bool {
 }
 
 type Task struct {
-	ID           string     `gorm:"primaryKey;size:64;comment:任务ID" json:"id"`
-	ExecutionID  string     `gorm:"size:64;not null;index;comment:所属执行ID" json:"execution_id"`
-	NodeID       string     `gorm:"size:64;not null;index;comment:节点ID" json:"node_id"`
-	NodeName     string     `gorm:"size:256;comment:快照:节点名称" json:"node_name"`
-	NodeType     NodeType   `gorm:"size:32;comment:快照:节点类型" json:"node_type"`
-	Status       TaskStatus `gorm:"size:32;not null;default:PENDING;index;comment:任务状态" json:"status"`
-	Input        json.RawMessage `gorm:"type:longtext;comment:输入数据" json:"input,omitempty"`
-	Output       json.RawMessage `gorm:"type:longtext;comment:输出数据" json:"output,omitempty"`
-	Error        string          `gorm:"type:text;comment:错误信息" json:"error,omitempty"`
-	RetryCount   int             `gorm:"not null;default:0;comment:已重试次数" json:"retry_count"`
-	MaxRetries   int             `gorm:"not null;default:0;comment:最大重试次数" json:"max_retries"`
-	IsRetry      bool            `gorm:"not null;default:false;comment:是否重试执行" json:"is_retry"`
-	AttemptID    string          `gorm:"size:128;index;comment:执行尝试ID(用于幂等)" json:"attempt_id"`
-	WorkerID     string          `gorm:"size:128;index;comment:处理该任务的WorkerID" json:"worker_id"`
-	ScheduledAt  *time.Time      `gorm:"index;comment:计划执行时间" json:"scheduled_at,omitempty"`
-	StartedAt    *time.Time      `gorm:"comment:开始时间" json:"started_at,omitempty"`
-	FinishedAt   *time.Time      `gorm:"comment:完成时间" json:"finished_at,omitempty"`
-	CreatedAt    time.Time       `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt    time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
+	ID          string          `gorm:"primaryKey;size:64;comment:任务ID" json:"id"`
+	ExecutionID string          `gorm:"size:64;not null;index;comment:所属执行ID" json:"execution_id"`
+	NodeID      string          `gorm:"size:64;not null;index;comment:节点ID" json:"node_id"`
+	NodeName    string          `gorm:"size:256;comment:快照:节点名称" json:"node_name"`
+	NodeType    NodeType        `gorm:"size:32;comment:快照:节点类型" json:"node_type"`
+	Status      TaskStatus      `gorm:"size:32;not null;default:PENDING;index;comment:任务状态" json:"status"`
+	Input       json.RawMessage `gorm:"type:longtext;comment:输入数据" json:"input,omitempty"`
+	Output      json.RawMessage `gorm:"type:longtext;comment:输出数据" json:"output,omitempty"`
+	Error       string          `gorm:"type:text;comment:错误信息" json:"error,omitempty"`
+	RetryCount  int             `gorm:"not null;default:0;comment:已重试次数" json:"retry_count"`
+	MaxRetries  int             `gorm:"not null;default:0;comment:最大重试次数" json:"max_retries"`
+	IsRetry     bool            `gorm:"not null;default:false;comment:是否重试执行" json:"is_retry"`
+	AttemptID   string          `gorm:"size:128;index;comment:执行尝试ID(用于幂等)" json:"attempt_id"`
+	WorkerID    string          `gorm:"size:128;index;comment:处理该任务的WorkerID" json:"worker_id"`
+	ScheduledAt *time.Time      `gorm:"index;comment:计划执行时间" json:"scheduled_at,omitempty"`
+	StartedAt   *time.Time      `gorm:"comment:开始时间" json:"started_at,omitempty"`
+	FinishedAt  *time.Time      `gorm:"comment:完成时间" json:"finished_at,omitempty"`
+	CreatedAt   time.Time       `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time       `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (t *Task) TableName() string { return "wf_tasks" }

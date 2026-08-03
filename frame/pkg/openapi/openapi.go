@@ -26,17 +26,17 @@ type Server struct {
 
 // Document OpenAPI 3.0 文档
 type Document struct {
-	OpenAPI    string                `json:"openapi"`
-	Info       Info                  `json:"info"`
-	Servers    []Server              `json:"servers,omitempty"`
-	Paths      map[string]*PathItem  `json:"paths"`
-	Components *Components           `json:"components,omitempty"`
-	Tags       []Tag                 `json:"tags,omitempty"`
+	OpenAPI    string               `json:"openapi"`
+	Info       Info                 `json:"info"`
+	Servers    []Server             `json:"servers,omitempty"`
+	Paths      map[string]*PathItem `json:"paths"`
+	Components *Components          `json:"components,omitempty"`
+	Tags       []Tag                `json:"tags,omitempty"`
 }
 
 // Components 组件定义
 type Components struct {
-	Schemas         map[string]*Schema        `json:"schemas,omitempty"`
+	Schemas         map[string]*Schema         `json:"schemas,omitempty"`
 	SecuritySchemes map[string]*SecurityScheme `json:"securitySchemes,omitempty"`
 }
 
@@ -68,13 +68,13 @@ type PathItem struct {
 
 // Operation 操作
 type Operation struct {
-	Tags        []string             `json:"tags,omitempty"`
-	Summary     string               `json:"summary,omitempty"`
-	Description string               `json:"description,omitempty"`
-	OperationID string               `json:"operationId,omitempty"`
-	Parameters  []Parameter          `json:"parameters,omitempty"`
-	RequestBody *RequestBody         `json:"requestBody,omitempty"`
-	Responses   map[string]*Response `json:"responses"`
+	Tags        []string              `json:"tags,omitempty"`
+	Summary     string                `json:"summary,omitempty"`
+	Description string                `json:"description,omitempty"`
+	OperationID string                `json:"operationId,omitempty"`
+	Parameters  []Parameter           `json:"parameters,omitempty"`
+	RequestBody *RequestBody          `json:"requestBody,omitempty"`
+	Responses   map[string]*Response  `json:"responses"`
 	Security    []map[string][]string `json:"security,omitempty"`
 }
 
@@ -89,8 +89,8 @@ type Parameter struct {
 
 // RequestBody 请求体
 type RequestBody struct {
-	Description string               `json:"description,omitempty"`
-	Required    bool                 `json:"required,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Required    bool                  `json:"required,omitempty"`
 	Content     map[string]*MediaType `json:"content"`
 }
 
@@ -101,7 +101,7 @@ type MediaType struct {
 
 // Response 响应
 type Response struct {
-	Description string               `json:"description"`
+	Description string                `json:"description"`
 	Content     map[string]*MediaType `json:"content,omitempty"`
 }
 
@@ -121,9 +121,9 @@ type Schema struct {
 
 // Generator OpenAPI 文档生成器
 type Generator struct {
-	doc        *Document
-	schemas    map[string]*Schema
-	tagMap     map[string]bool
+	doc     *Document
+	schemas map[string]*Schema
+	tagMap  map[string]bool
 }
 
 // NewGenerator 创建文档生成器
@@ -167,10 +167,6 @@ func (g *Generator) AddBearerAuth() *Generator {
 // RegisterController 注册 controller 并从中提取路由/参数文档
 func (g *Generator) RegisterController(instance interface{}) {
 	instanceType := reflect.TypeOf(instance)
-	instanceValue := reflect.ValueOf(instance)
-	if instanceValue.Kind() == reflect.Ptr {
-		instanceValue = instanceValue.Elem()
-	}
 
 	groupPath := getGroupPath(instance)
 	tagName := getTagName(instance, groupPath)
