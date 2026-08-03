@@ -30,6 +30,7 @@
 - **api 模块 GoFrame 依赖过重**：`middleware/goframe` 及示例改为 `-tags goframe` 可选编译，默认构建不再引入 GoFrame 全量依赖
 - **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig`，配置文件变化时自动同步 JWT 配置（复用 `applyJWTFromConfig`）；已**接入生命周期**——`Init` 完成后自动启动监听，`Close` 时自动停止，无需手动调用
 - **condition 节点 Expression 模式实现**：基于 goja 的 JS 布尔表达式求值（`input` 变量注入），替代原先的预留桩
+- **Go 版本回退 1.25 → 1.24**：修复依赖升级导致的工具链漂移。goja 降级到 go1.20 兼容版本（2024-08）、grpc 降级 v1.83 → v1.72、otel v1.44 → v1.34、`golang.org/x/*` 与 genproto 统一降级到 go1.24 兼容版本；所有 go.mod/go.work 的 `go` 指令统一为 `1.24`
 - workflow 测试覆盖补强：condition/input/output 节点、幂等检查器（含并发安全）、MemoryStore CRUD/乐观锁/pending/worker/并发安全
 - 修复 `MemoryIdempotencyChecker` 并发写 map 的数据竞争（加 RWMutex）
 - CI security job 固定 gosec action 版本（`@master` → `@v2.22.2`）保证可复现

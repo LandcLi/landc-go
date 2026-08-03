@@ -1,6 +1,8 @@
 module github.com/LandcLi/landc-go/api
 
-go 1.25.0
+go 1.24
+
+toolchain go1.24.9
 
 require (
 	github.com/LandcLi/landc-go/tools v0.1.0
@@ -52,19 +54,19 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.44.0 // indirect
-	go.opentelemetry.io/otel/metric v1.44.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
-	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.opentelemetry.io/otel v1.38.0 // indirect
+	go.opentelemetry.io/otel/metric v1.38.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
+	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

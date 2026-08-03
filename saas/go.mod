@@ -1,6 +1,6 @@
 module github.com/LandcLi/landc-go/saas
 
-go 1.25.0
+go 1.24
 
 require (
 	github.com/glebarez/sqlite v1.11.0
@@ -16,8 +16,8 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect

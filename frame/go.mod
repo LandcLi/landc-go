@@ -1,6 +1,8 @@
 module github.com/LandcLi/landc-go/frame
 
-go 1.25.0
+go 1.24
+
+toolchain go1.24.9
 
 require (
 	github.com/LandcLi/landc-go/api v0.1.0
@@ -13,12 +15,17 @@ require (
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/robfig/cron/v3 v3.0.1
 	go.etcd.io/etcd/client/v3 v3.5.21
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.72.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
+)
+
+require (
+	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 )
 
 require (
@@ -67,20 +74,17 @@ require (
 	go.etcd.io/etcd/api/v3 v3.5.21 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.21 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
