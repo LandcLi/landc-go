@@ -215,6 +215,49 @@ func TestPEMInvalidPath(t *testing.T) {
 	}
 }
 
+// TestPrivateKeyInsecurePermissions 验证私钥文件权限过宽时被拒绝
+func TestPrivateKeyInsecurePermissions(t *testing.T) {
+	priv := genRSAKey(t)
+	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	dir := t.TempDir()
+	// 0644：同组/其他用户可读，应被拒绝
+	insecurePath := filepath.Join(dir, "insecure.pem")
+	if err := os.WriteFile(insecurePath, privPEM, 0o644); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+
+	InitJWT(&JWTConfig{
+		SigningMethod:  "RS256",
+		PrivateKeyPath: insecurePath,
+		ExpireTime:     1 * time.Hour,
+		Issuer:         "test",
+	})
+
+	if _, err := GenerateToken(1, "user"); err == nil {
+		t.Fatal("GenerateToken should fail when private key permissions are too loose")
+	}
+
+	// 0600 的另一路径：权限合法应成功
+	securePath := filepath.Join(dir, "secure.pem")
+	if err := os.WriteFile(securePath, privPEM, 0o600); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+	InitJWT(&JWTConfig{
+		SigningMethod:  "RS256",
+		PrivateKeyPath: securePath,
+		ExpireTime:     1 * time.Hour,
+		Issuer:         "test",
+	})
+	token, err := GenerateToken(1, "user")
+	if err != nil {
+		t.Fatalf("GenerateToken with 0600 key should succeed: %v", err)
+	}
+	if _, err := ParseToken(token); err != nil {
+		t.Fatalf("ParseToken: %v", err)
+	}
+}
+
 // TestUnsupportedSigningMethod 验证不支持的算法被拒绝
 func TestUnsupportedSigningMethod(t *testing.T) {
 	InitJWT(&JWTConfig{

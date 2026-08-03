@@ -342,6 +342,17 @@ func loadPEMKey(path string, isPrivate bool) (any, error) {
 // 私钥支持：PKCS#1 RSA / SEC1 EC / PKCS#8（RSA 与 EC）
 // 公钥支持：PKIX / PKCS#1 RSA / X.509 证书
 func parsePEMFile(path string, isPrivate bool) (any, error) {
+	// 私钥文件权限必须 ≤ 0600，防止被同机其他用户读取
+	if isPrivate {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("stat key file %s: %w", path, err)
+		}
+		if perm := info.Mode().Perm(); perm&0o077 != 0 {
+			return nil, fmt.Errorf("private key file %s has insecure permissions %o (want 0600 or stricter)", path, perm)
+		}
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read key file %s: %w", path, err)
