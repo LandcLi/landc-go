@@ -33,13 +33,19 @@ func (d *DataAccess) IsExpired() bool {
 	return d.ExpireAt.Before(time.Now())
 }
 
-// CheckConstraint 检查约束条件
+// CheckConstraint 检查数据是否满足本访问记录声明的约束条件
+// 无约束时恒通过；约束格式非法时保守拒绝（false）
 func (d *DataAccess) CheckConstraint(data map[string]interface{}) bool {
 	if d.Constraints == "" {
 		return true
 	}
-	
-	// TODO: 实现约束检查逻辑
-	// 解析 Constraints JSON，与 data 对比
-	return true
+
+	constraint, err := ParseConstraint(d.Constraints)
+	if err != nil {
+		return false
+	}
+	if len(constraint) == 0 {
+		return true
+	}
+	return ValidateConstraint(data, constraint)
 }

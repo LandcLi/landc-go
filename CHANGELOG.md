@@ -31,6 +31,9 @@
 - **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig`，配置文件变化时自动同步 JWT 配置（复用 `applyJWTFromConfig`）；已**接入生命周期**——`Init` 完成后自动启动监听，`Close` 时自动停止，无需手动调用
 - **condition 节点 Expression 模式实现**：基于 goja 的 JS 布尔表达式求值（`input` 变量注入），替代原先的预留桩
 - **Go 版本回退 1.25 → 1.24**：修复依赖升级导致的工具链漂移。goja 降级到 go1.20 兼容版本（2024-08）、grpc 降级 v1.83 → v1.72、otel v1.44 → v1.34、`golang.org/x/*` 与 genproto 统一降级到 go1.24 兼容版本；所有 go.mod/go.work 的 `go` 指令统一为 `1.24`
+- **saas `DataAccess.CheckConstraint` 实现**：消除"宣称校验但直接返回 true"的预留桩；约束解析/校验逻辑下沉到 `model` 包（`model.ParseConstraint`/`model.ValidateConstraint`），`saas/pkg` 层委托保持 API 兼容；非法约束 JSON 保守拒绝（fail-closed）
+- **workflow README 能力矩阵对齐**：SCRIPT 节点标注为 JS（goja）而非"JS/Python"；SUB_WORKFLOW 明确标注"规划中"而非宣称支持
+- **示例补齐**：`log/`、`tools/`、`saas/` 新增 `examples/`（均已验证可编译可运行）
 - workflow 测试覆盖补强：condition/input/output 节点、幂等检查器（含并发安全）、MemoryStore CRUD/乐观锁/pending/worker/并发安全
 - 修复 `MemoryIdempotencyChecker` 并发写 map 的数据竞争（加 RWMutex）
 - CI security job 固定 gosec action 版本（`@master` → `@v2.22.2`）保证可复现

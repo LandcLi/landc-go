@@ -595,11 +595,15 @@ wf := &model.Workflow{
 | 类型 | 常量 | 说明 | Config 格式 |
 |------|------|------|------------|
 | **HTTP** | `NodeTypeHttp` | 调用外部 HTTP 接口 | `{"url":"...","method":"POST","headers":{}}` |
-| **SCRIPT** | `NodeTypeScript` | 执行脚本（JS/Python） | `{"lang":"javascript","script":"..."}` |
-| **SUB_WORKFLOW** | `NodeTypeSubWorkflow` | 调用子工作流 | `{"workflow_id":"..."}` |
+| **SCRIPT** | `NodeTypeScript` | 执行 JS 脚本（goja 引擎，无 CGO） | `{"lang":"js","script":"input.amount * 2"}` |
+| **SUB_WORKFLOW** | `NodeTypeSubWorkflow` | ⚠️ 规划中（当前返回未实现错误） | — |
 | **DELAY** | `NodeTypeDelay` | 延迟等待 | `{"duration":5}`（秒） |
-| **CONDITION** | `NodeTypeCondition` | 条件判断 | — |
+| **CONDITION** | `NodeTypeCondition` | 条件判断（字段匹配或 JS 表达式） | `{"field":"status","operator":"equals","expected":"active"}` 或 `{"expression":"input.score > 60"}` |
 | **CUSTOM** | `NodeTypeCustom` | 自定义执行器 | 自定义 |
+
+> **说明**：
+> - `SCRIPT` 支持 `js`/`javascript`，脚本内可用 `input`（解析后的 JSON 对象）与 `inputRaw`（原始字符串）；默认 30s 超时中断防死循环。
+> - `SUB_WORKFLOW` 节点当前未实现（executor 返回明确错误，不会静默透传），请将子流程在工作流定义中内联展开或使用自定义执行器。
 
 ### HTTP 执行器
 

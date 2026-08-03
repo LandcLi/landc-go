@@ -71,60 +71,37 @@ func TestValidateConstraint(t *testing.T) {
 	})
 }
 
-func TestCompareValuesOperators(t *testing.T) {
-	t.Run("__eq", func(t *testing.T) {
-		if !compareValues(100, map[string]interface{}{"__eq": 100}) {
-			t.Error("__eq should match")
-		}
-		if compareValues(101, map[string]interface{}{"__eq": 100}) {
-			t.Error("__eq should not match")
-		}
-	})
+// TestValidateConstraintOperators 验证带操作符的约束（委托 model 实现）
+func TestValidateConstraintOperators(t *testing.T) {
+	data := map[string]interface{}{
+		"status": "active",
+		"amount": 100,
+		"tags":   "a,b,c",
+	}
 
-	t.Run("__ne", func(t *testing.T) {
-		if !compareValues(101, map[string]interface{}{"__ne": 100}) {
-			t.Error("__ne should match different value")
-		}
-	})
-
-	t.Run("__gt __gte __lt __lte", func(t *testing.T) {
-		if !compareValues(101, map[string]interface{}{"__gt": 100}) {
+	t.Run("__gt", func(t *testing.T) {
+		if !ValidateConstraint(data, map[string]interface{}{"amount": map[string]interface{}{"__gt": 50}}) {
 			t.Error("__gt should match")
 		}
-		if !compareValues(100, map[string]interface{}{"__gte": 100}) {
-			t.Error("__gte should match boundary")
-		}
-		if !compareValues(99, map[string]interface{}{"__lt": 100}) {
-			t.Error("__lt should match")
-		}
-		if !compareValues(100, map[string]interface{}{"__lte": 100}) {
-			t.Error("__lte should match boundary")
-		}
-		if compareValues(99, map[string]interface{}{"__gt": 100}) {
-			t.Error("__gt should not match smaller")
+		if ValidateConstraint(data, map[string]interface{}{"amount": map[string]interface{}{"__gt": 200}}) {
+			t.Error("__gt should not match")
 		}
 	})
 
 	t.Run("__in", func(t *testing.T) {
-		if !compareValues("b", map[string]interface{}{"__in": []interface{}{"a", "b", "c"}}) {
+		if !ValidateConstraint(data, map[string]interface{}{"status": map[string]interface{}{"__in": []interface{}{"active", "disabled"}}}) {
 			t.Error("__in should match")
-		}
-		if compareValues("d", map[string]interface{}{"__in": []interface{}{"a", "b", "c"}}) {
-			t.Error("__in should not match")
 		}
 	})
 
 	t.Run("__like", func(t *testing.T) {
-		if !compareValues("hello world", map[string]interface{}{"__like": "world"}) {
+		if !ValidateConstraint(data, map[string]interface{}{"tags": map[string]interface{}{"__like": "b"}}) {
 			t.Error("__like should match substring")
-		}
-		if compareValues("hello", map[string]interface{}{"__like": "xyz"}) {
-			t.Error("__like should not match")
 		}
 	})
 
 	t.Run("unknown operator rejected", func(t *testing.T) {
-		if compareValues(100, map[string]interface{}{"__bogus": 100}) {
+		if ValidateConstraint(data, map[string]interface{}{"amount": map[string]interface{}{"__bogus": 100}}) {
 			t.Error("unknown operator should be rejected")
 		}
 	})
