@@ -86,6 +86,23 @@ func main() {
 | `pkg/bootstrap` | 应用生命周期管理 |
 | `pkg/cmd` | CLI 命令行框架 |
 
+## 安全行为
+
+### JWT（`pkg/auth`）
+
+- 支持签名算法：**HS256 / RS256 / ES256**，签发时按 `SigningMethod` 选择，验签固定 `WithValidMethods` 算法白名单（防算法混淆攻击）
+- **HS256 密钥长度 ≥ 32 字符**（`ValidateSecret` 强制校验，不满足直接拒绝初始化）
+- **私钥文件权限强制 0600**（RS256/ES256 加载时校验，过宽权限拒绝）
+- 非对称模式支持 `PrivateKeyPath`/`PublicKeyPath` 文件或 `PrivateKey`/`PublicKey` 对象注入
+
+### CORS（`pkg/middleware.CORS`）
+
+- 默认 `Access-Control-Allow-Origin: *`（**不含凭据**）；`AllowCredentials` 开启时必须显式传入来源列表，禁止 `*` + 凭据组合
+
+### WebSocket（`pkg/websocket`）
+
+- 默认启用**同源校验**（`defaultCheckOrigin` 拒绝跨域握手）；生产可显式配置 `CheckOrigin` 定制允许来源
+
 ## CLI 工具
 
 ```bash

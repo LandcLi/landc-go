@@ -140,6 +140,16 @@ golangci-lint run ./...
 - `fix/*` — 修复分支
 - `docs/*` — 文档分支
 
+## 版本与发布
+
+- **Tag 命名**：
+  - 库模块：`<module>/vX.Y.Z`（如 `frame/v0.5.0`）
+  - 整体 / CLI：`vX.Y.Z`（如 `v0.5.0`）
+- **严格语义化版本**：`vX.Y.Z`，拒绝预发布后缀（CI `validate-tag` 强制）
+- **发布顺序**（依赖者后发）：`tools → log → api → frame → workflow → saas`
+- **发版前**：运行 `scripts/release-check.sh`（详见 `docs/releases.md`）
+- **依赖升级门槛**：依赖 go 指令 ≤ 1.26 可自动合入 minor/patch；需提升 go 指令的依赖走人工 review（历史教训：grpc/goja/otel 曾导致 toolchain 漂移）
+
 ## 许可
 
 通过贡献代码，您同意您的贡献将按照项目的 [MIT 许可证](LICENSE) 进行许可。
