@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
+	"github.com/LandcLi/landc-go/frame/pkg/web"
 	"github.com/gin-gonic/gin"
 )
 
@@ -192,6 +194,82 @@ func (g *Generator) RegisterController(instance interface{}) {
 
 		g.addPathOperation(fullPath, methodMeta.HTTPMethod, operation)
 	}
+}
+
+// Route 描述一条最终生效路由，供按最终路由生成文档（与 web 路由查询对齐）。
+type Route struct {
+	Method      string
+	Path        string
+	Description string
+	HandlerName string
+}
+
+// RegisterControllerRoutes 注册控制器并按其"最终生效路由"生成文档。
+// 路径/方法以 routes 为准（含前缀与运行时覆盖），请求/响应结构体从方法反射。
+func (g *Generator) RegisterControllerRoutes(instance interface{}, routes []Route) {
+	routeByName := make(map[string]Route, len(routes))
+	for _, r := range routes {
+		routeByName[r.HandlerName] = r
+	}
+
+	instanceType := reflect.TypeOf(instance)
+	groupPath := getGroupPath(instance)
+	tagName := getTagName(instance, groupPath)
+
+	if tagName != "" && !g.tagMap[tagName] {
+		g.tagMap[tagName] = true
+		g.doc.Tags = append(g.doc.Tags, Tag{Name: tagName})
+	}
+
+	for i := 0; i < instanceType.NumMethod(); i++ {
+		method := instanceType.Method(i)
+		if !isExported(method.Name) {
+			continue
+		}
+
+		rt, ok := routeByName[method.Name]
+		if !ok || rt.Method == "" {
+			continue
+		}
+
+		methodMeta := parseMethodMetaForDoc(method)
+		// 用最终生效路由覆盖编译期解析结果
+		methodMeta.Path = rt.Path
+		methodMeta.HTTPMethod = rt.Method
+		if rt.Description != "" {
+			methodMeta.Description = rt.Description
+		}
+
+		op := g.buildOperation(method, methodMeta, tagName)
+		g.addPathOperation(rt.Path, rt.Method, op)
+	}
+}
+
+// RegisterServer 自动收集 web.Server 中已注册的控制器并生成文档。
+// 路径使用最终生效路由，与 web 注册保持一致（需求 6b：共用同一份路由事实来源）。
+func (g *Generator) RegisterServer(s *web.Server) {
+	for _, c := range s.Controllers() {
+		routes := make([]Route, len(c.Routes))
+		for i, r := range c.Routes {
+			routes[i] = Route{
+				Method:      r.Method,
+				Path:        r.Path,
+				Description: r.Description,
+				HandlerName: r.HandlerName,
+			}
+		}
+		g.RegisterControllerRoutes(c.Instance, routes)
+	}
+}
+
+// WriteFile 将生成的 OpenAPI 文档写入文件（供 CI 落盘 openapi.json，需求 6c）。
+func (g *Generator) WriteFile(path string) error {
+	data, err := g.JSON()
+	if err != nil {
+		return err
+	}
+	//nolint:gosec // OpenAPI 文档为公开内容，0644 便于 CI 与文档工具读取
+	return os.WriteFile(path, data, 0o644)
 }
 
 // Generate 生成文档
