@@ -305,14 +305,21 @@ import (
 	buf.WriteString("\t\"github.com/LandcLi/landc-go/frame/pkg/di\"\n")
 	buf.WriteString(")\n\n")
 
-	// init() registering the proxy factory
+	// init() registering the proxy factory (backward-compatible blank import usage)
 	fmt.Fprintf(&buf, `func init() {
 	di.RegisterProxyFactory("%s", func(client *di.ProxyClient) %s.%s {
 		return &%s{client: client}
 	})
 }
 
-`, cfg.GatewayName, pkgName, cfg.InterfaceName, proxyStructName)
+// New%sProxy 创建远程代理实例（显式构造，推荐用法）。
+// 返回实现 %s.%s 接口的代理，行为与 di.ProvideRemote 等价。
+func New%sProxy(baseURL string, opts ...di.RemoteOption) %s.%s {
+	return &%s{client: di.NewProxyClient(baseURL, opts...)}
+}
+
+`, cfg.GatewayName, pkgName, cfg.InterfaceName, proxyStructName,
+		cfg.InterfaceName, pkgName, cfg.InterfaceName, cfg.InterfaceName, pkgName, cfg.InterfaceName, proxyStructName)
 
 	// Proxy struct (unexported)
 	fmt.Fprintf(&buf, `type %s struct {
