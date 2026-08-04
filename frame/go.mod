@@ -3,9 +3,9 @@ module github.com/LandcLi/landc-go/frame
 go 1.26
 
 require (
-	github.com/LandcLi/landc-go/api v0.1.0
-	github.com/LandcLi/landc-go/log v0.1.0
-	github.com/LandcLi/landc-go/tools v0.1.0
+	github.com/LandcLi/landc-go/api v0.5.0
+	github.com/LandcLi/landc-go/log v0.5.0
+	github.com/LandcLi/landc-go/tools v0.5.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -85,7 +85,7 @@ require (
 )
 
 replace (
-	github.com/LandcLi/landc-go/api v0.1.0 => ../api
-	github.com/LandcLi/landc-go/log v0.1.0 => ../log
-	github.com/LandcLi/landc-go/tools v0.1.0 => ../tools
+	github.com/LandcLi/landc-go/api v0.5.0 => ../api
+	github.com/LandcLi/landc-go/log v0.5.0 => ../log
+	github.com/LandcLi/landc-go/tools v0.5.0 => ../tools
 )

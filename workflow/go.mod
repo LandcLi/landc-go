@@ -3,10 +3,10 @@ module github.com/LandcLi/landc-go/workflow
 go 1.26
 
 require (
-	github.com/LandcLi/landc-go/frame v0.1.0
-	github.com/LandcLi/landc-go/log v0.1.0
-	github.com/LandcLi/landc-go/saas v0.1.0
-	github.com/LandcLi/landc-go/tools v0.1.0
+	github.com/LandcLi/landc-go/frame v0.5.0
+	github.com/LandcLi/landc-go/log v0.5.0
+	github.com/LandcLi/landc-go/saas v0.5.0
+	github.com/LandcLi/landc-go/tools v0.5.0
 	github.com/dop251/goja v0.0.0-20240816181238-8130cadc5774
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.19.0
@@ -16,7 +16,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/LandcLi/landc-go/api v0.1.0 // indirect
+	github.com/LandcLi/landc-go/api v0.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
@@ -85,10 +85,10 @@ require (
 )
 
 replace (
-	github.com/LandcLi/landc-go/api v0.1.0 => ../api
-	github.com/LandcLi/landc-go/frame v0.1.0 => ../frame
-	github.com/LandcLi/landc-go/log v0.1.0 => ../log
-	github.com/LandcLi/landc-go/tools v0.1.0 => ../tools
+	github.com/LandcLi/landc-go/api v0.5.0 => ../api
+	github.com/LandcLi/landc-go/frame v0.5.0 => ../frame
+	github.com/LandcLi/landc-go/log v0.5.0 => ../log
+	github.com/LandcLi/landc-go/tools v0.5.0 => ../tools
 )
 
-replace github.com/LandcLi/landc-go/saas v0.1.0 => ../saas
+replace github.com/LandcLi/landc-go/saas v0.5.0 => ../saas

@@ -5,76 +5,68 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.5.0] - 2026-08-04
 
 ### 新增
 
 - **JWT 支持非对称签名**：`JWTConfig` 新增 `SigningMethod`（HS256/RS256/ES256）、`PrivateKeyPath`、`PublicKeyPath` 及可编程注入的 `PrivateKey`/`PublicKey`；`ParseToken` 通过算法白名单（`WithValidMethods`）防御算法混淆攻击；PEM 密钥按路径缓存加载；未配置 `SigningMethod` 时默认 HS256，向后兼容
 - **workflow ScriptExecutor 实现 JS 执行**：基于 goja（纯 Go，无 CGO），支持 `input`/`inputRaw` 注入与超时中断；不支持的语言返回明确错误
-- workflow executor 测试（脚本执行、超时、SSRF 地址识别等）
-
-### 安全
-
-- **Go 1.24 → 1.26 升级（go 1.24 已于 2026-02 停止安全支持）**：统一所有 go.mod/go.work 的 `go` 指令为 `1.26`，修复标准库（crypto/tls、x509、net 等 8 项）与依赖漏洞
-- **修复依赖漏洞**（govulncheck v1.6.0 全模块 0 漏洞）：grpc v1.72.0 → v1.82.1（GO-2026-6061，xDS RBAC/HTTP2）、`golang.org/x/text` → v0.39.0（GO-2026-5970，norm 无限循环 DoS）、pgx v5.6.0 → v5.9.2、quic-go v0.54.0 → v0.59.1、`golang.org/x/sys` → v0.46.0
-- **golangci-lint v1.64.8 → v2.12.2**：配置文件迁移至 v2 格式（`linters.default: none` 保持白名单语义）；修复 v2 新增检查 60+ 处（importShadow/reflect.Pointer/QF10xx/SA1019/ST1005/G115/hostport 等）
-- **修复**：`saas.RevokeAccess` 越权漏洞——撤销共享前校验当前租户为数据 owner，非 owner 撤销被拒绝
-- **修复**：workflow HTTP 节点 SSRF——默认拒绝内网/保留地址目标，可通过 `allow_private_network` 显式开启
-- 升级 `google.golang.org/grpc` v1.62.2 → v1.83.0（安全敏感组件）
-
-### 修复
-
-- `workflow/init.go`：移除无效占位行（`_ = ttl`、`_ = trace.TraceID`）；`InitWithComponents` 改为真正使用传入的 `*gorm.DB`
-- `saas.ListTenantData`：内存分页改为 SQL 层 UNION + LIMIT/OFFSET 分页
-- 清理 `saas/go.mod` 冗余 replace 死配置；统一 Go 版本格式
-- `.gitignore`：移除对 `go.work`/`go.work.sum` 的忽略（仓库实际跟踪）
-- `SECURITY.md` / `CODE_OF_CONDUCT.md` 占位符替换为实际联系邮箱
-- `SubWorkflowExecutor` 从静默透传改为明确报错（避免"宣称支持但无实现"）
-- **api 模块 GoFrame 依赖过重**：`middleware/goframe` 及示例改为 `-tags goframe` 可选编译，默认构建不再引入 GoFrame 全量依赖
-- **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig`，配置文件变化时自动同步 JWT 配置（复用 `applyJWTFromConfig`）；已**接入生命周期**——`Init` 完成后自动启动监听，`Close` 时自动停止，无需手动调用
 - **condition 节点 Expression 模式实现**：基于 goja 的 JS 布尔表达式求值（`input` 变量注入），替代原先的预留桩
-- **Go 版本回退 1.25 → 1.24**：修复依赖升级导致的工具链漂移。goja 降级到 go1.20 兼容版本（2024-08）、grpc 降级 v1.83 → v1.72、otel v1.44 → v1.34、`golang.org/x/*` 与 genproto 统一降级到 go1.24 兼容版本；所有 go.mod/go.work 的 `go` 指令统一为 `1.24`
-- **saas `DataAccess.CheckConstraint` 实现**：消除"宣称校验但直接返回 true"的预留桩；约束解析/校验逻辑下沉到 `model` 包（`model.ParseConstraint`/`model.ValidateConstraint`），`saas/pkg` 层委托保持 API 兼容；非法约束 JSON 保守拒绝（fail-closed）
-- **workflow README 能力矩阵对齐**：SCRIPT 节点标注为 JS（goja）而非"JS/Python"；SUB_WORKFLOW 明确标注"规划中"而非宣称支持
-- **示例补齐**：`log/`、`tools/`、`saas/` 新增 `examples/`（均已验证可编译可运行）
-- **golangci-lint 全量清零**：6 个模块 0 error。修复 80+ 处 lint 问题（gofmt/gocritic/staticcheck/gosec/errcheck/misspell 等），含 2 个真实缺陷：
-  - `converter` uint/uint64 → int64 转换缺少溢出检查（G115）
-  - `tag` Min/Max 验证器负数阈值导致 uint 比较失效（负数被转成超大无符号值，校验被绕过）
-- CI security job 与本地 lint 配置统一（golangci-lint v1.64.8，`gosec`/`gocyclo` 已启用）
-- workflow 测试覆盖补强：condition/input/output 节点、幂等检查器（含并发安全）、MemoryStore CRUD/乐观锁/pending/worker/并发安全
-- 修复 `MemoryIdempotencyChecker` 并发写 map 的数据竞争（加 RWMutex）
-- CI security job 固定 gosec action 版本（`@master` → `@v2.22.2`）保证可复现
-
-- 添加 GitHub Actions CI 流水线（lint / test / build / security 四 job）
-- 添加 `.golangci.yml`（gofmt / govet / staticcheck / errcheck / gosec / gocyclo 等）
-- 添加 `Makefile` 统一构建、测试、Lint 命令
-- 添加根目录 `.gitignore`
-- 添加 `go.work` 工作区文件，支持本地多模块开发
-- 添加 `Dockerfile`（builder / dev / production 三阶段）
-- 添加 `.env.example` 环境变量模板
-- 添加社区文件：`CONTRIBUTING.md`、`CODE_OF_CONDUCT.md`、`SECURITY.md`
-- 添加 `.goreleaser.yaml` 与 release 发布流水线
-- 添加 `CHANGELOG.md`
-
-### 安全
-
-- **修复**：saas 模块 import 路径错误导致无法编译（`landc-go/saas/...` → `github.com/LandcLi/landc-go/saas/...`）
-- **修复**：JWT 默认密钥 `"change-me"` 硬编码，改为从环境变量 `LANDC_JWT_SECRET` 注入；密钥长度不足 32 字符时拒绝签发/解析
-- **修复**：WebSocket 默认允许任意跨域 Origin（CSWSH 风险），改为默认同源校验
-- **修复**：文件上传自定义 `FileNameFunc` 返回值未做路径穿越防护，新增 `filepath.Base` 消毒
-- **修复**：CORS 默认 `*` 与 `Allow-Credentials` 非法共存，现在仅在显式配置来源时允许凭据
-- **修复**：内部错误直接透传客户端，改为统一返回 `internal server error` 并记录日志
-- **修复**：`TenantScopeWithConstraint` 中带约束的访问记录被静默放行（越权风险），实现约束验证并拒绝非法约束
-- **修复**：DB 默认日志级别从 `Info` 改为 `Warn`，可通过 `LANDC_DB_LOG_MODE` 覆盖
+- **工作流测试全量补齐**：8 个包全部有测试（engine/executor/idempotent/store/scheduler/lock/observer/model），含 `-race` 并发验证
+- **锁内存实现 `MemoryLock`**：进程内、token 校验、TTL + 自动续约，语义与 RedisLock 一致，供无 Redis 单机/测试场景
+- **框架全链路集成测试**（`frame/tests/`）：Config(YAML) → DB(sqlite) → DI → Controller(Meta Tag 路由) → 中间件 → JWT → 统一响应，6 个用例
+- **workflow + saas 跨模块集成测试**（`workflow/pkg/integration/`）：引擎执行时节点调用 saas `TenantScope` 做租户数据隔离校验
+- **并发压力冒烟测试**（`engine_stress_test.go`）：50 并发执行 + 60 节点 DAG ×5 轮
+- **性能基准**：JWT 签发/验签、内存 store、saas scope 查询（记录于 `docs/benchmarks.md`）
+- **示例补齐**：`log/`、`tools/`、`saas/` 新增 `examples/`（已验证可编译可运行）
+- **CI 与工程化**：GitHub Actions 流水线（lint/test/build/security 四 job）、`.golangci.yml`、`Makefile`、根 `.gitignore`、`go.work` 工作区、`Dockerfile`（builder/dev/production 三阶段）、`.env.example`、`CONTRIBUTING.md`、`CODE_OF_CONDUCT.md`、`SECURITY.md`、`.goreleaser.yaml`、`CHANGELOG.md`
 
 ### 修复
 
-- **修复**：DI 容器 `RegisterLazySingleton` 返回闭包而非实例的功能性 Bug
-- **修复**：`Command.Run` 对 `Bootstrap` 为 nil 时的空指针 panic
-- **修复**：workflow 引擎中无意义的局部 `sync.Mutex`，改为共享锁保护 `completedNodes` 并发写
-- **修复**：`frame/examples` 中 `package main` 缺少 `main()` 导致的编译失败
-- **修复**：`tools/tag` 中两处不可达代码
-- **修复**：`web` 测试断言与统一响应格式不匹配
+- **`executeDAG` 数据竞争**：主循环无锁读 `completedNodes`，与 batch goroutine 并发写冲突（由压力冒烟测试发现），加 `completedMu` 保护
+- **`saas.ListTenantData`**：内存分页改为 SQL 层 UNION + LIMIT/OFFSET 分页
+- **`saas.TenantScopeWithAccess` 使用 `NOW()`**：不可移植到 sqlite，改为参数化 `time.Now()`
+- **`saas.GetTenantTree` 子树构建失败**：`rootID=nil` 时只查根租户导致 children 为空；子树场景顶层节点匹配 `root.ParentID`
+- **`workflow/init.go`**：移除无效占位行（`_ = ttl`、`_ = trace.TraceID`）；`InitWithComponents` 改为真正使用传入的 `*gorm.DB`
+- **`SubWorkflowExecutor`**：从静默透传改为明确报错（避免"宣称支持但无实现"）
+- **api 模块 GoFrame 依赖过重**：`middleware/goframe` 及示例改为 `-tags goframe` 可选编译
+- **JWT 配置热更新不同步**：bootstrap 新增 `WatchJWTConfig` 自动同步，已接入生命周期
+- **saas `DataAccess.CheckConstraint` 实现**：消除"宣称校验但直接返回 true"的预留桩，非法约束保守拒绝（fail-closed）
+- **workflow README 能力矩阵对齐**：SCRIPT 标注 JS（goja）、SUB_WORKFLOW 明确标注"规划中"
+- **golangci-lint 全量清零**：6 模块 0 error，修复 80+ 处（含 converter 溢出检查缺失、tag 负数阈值绕过 2 个真实缺陷）
+- **`MemoryIdempotencyChecker` 并发写 map 数据竞争**：加 RWMutex
+- **DI 容器 `RegisterLazySingleton`**：返回闭包而非实例的功能性 Bug
+- **`Command.Run` 对 nil Bootstrap**：空指针 panic 修复
+- **workflow 引擎共享锁**：无意义的局部 `sync.Mutex` 改为共享锁保护 `completedNodes`
+- **web 测试断言**：与统一响应格式不匹配修复
+
+### 安全
+
+- **Go 1.24 → 1.26 升级**（go 1.24 已于 2026-02 停止安全支持）：统一所有 go.mod/go.work 的 `go` 指令为 `1.26`，修复标准库（crypto/tls、x509、net 等 8 项）漏洞
+- **修复依赖漏洞**（govulncheck v1.6.0 全模块 0 漏洞）：grpc v1.72.0 → v1.82.1（GO-2026-6061）、`golang.org/x/text` → v0.39.0（GO-2026-5970）、pgx v5.6.0 → v5.9.2、quic-go v0.54.0 → v0.59.1、`golang.org/x/sys` → v0.46.0
+- **golangci-lint v1.64.8 → v2.12.2**：配置迁移至 v2 格式，修复 v2 新增检查 60+ 处
+- **JWT 私钥权限强制 0600**：RS256/ES256 私钥文件组/其他用户可读时拒绝加载
+- **`saas.RevokeAccess` 越权漏洞**：撤销共享前校验当前租户为数据 owner
+- **workflow HTTP 节点 SSRF**：默认拒绝内网/保留地址目标，需显式开启 `allow_private_network`
+- **JWT 默认密钥硬编码**：改为环境变量 `LANDC_JWT_SECRET` 注入；密钥不足 32 字符拒绝签发/解析
+- **WebSocket CSWSH**：默认同源校验
+- **文件上传路径穿越**：`FileNameFunc` 返回值经 `filepath.Base` 消毒
+- **CORS**：默认 `*` 与 `Allow-Credentials` 非法共存修复
+- **内部错误透传**：统一返回 `internal server error` 并记录日志
+- **`TenantScopeWithConstraint` 静默放行**：实现约束验证并拒绝非法约束
+- **DB 默认日志级别**：`Info` → `Warn`，可通过 `LANDC_DB_LOG_MODE` 覆盖
+
+### 文档
+
+- `frame/README.md` 新增"安全行为"小节（JWT 算法/密钥长度/私钥权限、CORS 凭据策略、WebSocket 同源）
+- 新增 `docs/releases.md`（发布流程、tag 规范、回滚方案）、`docs/dependencies.md`（依赖基线）、`docs/benchmarks.md`（性能基线）、`docs/licenses.csv`（第三方许可证清单）
+- `CONTRIBUTING.md` 新增版本与发布小节；workflow/saas/api README 能力矩阵对齐
+
+### 发布
+
+- **release.yml 多模块重写**：支持 `log/v*`、`tools/v*`、`api/v*`、`frame/v*`、`workflow/v*`、`saas/v*`、`v*` 触发；`validate-tag` job 强制严格 semver + 模块前缀白名单；发布前 6 模块 build+test
+- **`scripts/release-check.sh`**：发布前冻结检查自动化（git 干净 / build / vet / test / lint / govulncheck / mod verify / go 指令一致性）
+- 第三方许可证审计：78 个依赖无 GPL/AGPL/SSPL（唯一非 MIT 为 MPL-2.0 可接受）
 
 ## [0.1.0] - 2026-07-25
 
