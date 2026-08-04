@@ -19,8 +19,10 @@ import (
 
 type (
 	Server struct {
-		engine *gin.Engine
-		config *ServerConfig
+		engine      *gin.Engine
+		config      *ServerConfig
+		routes      *routeRegistry
+		controllers []ControllerRegistration
 	}
 
 	ServerConfig struct {
@@ -32,9 +34,17 @@ type (
 	}
 
 	RouterGroup struct {
-		group *gin.RouterGroup
+		group  *gin.RouterGroup
+		server *Server
 	}
 )
+
+// ControllerRegistration 记录一次已注册的控制器与其最终生效路由。
+// 供路由查询与 API 文档生成（与 web 注册共用同一份路由事实来源）。
+type ControllerRegistration struct {
+	Instance interface{}
+	Routes   []RouteInfo
+}
 
 // New 使用默认配置创建 Server，自动读取全局配置（如有），否则使用内置默认值。
 func New() *Server {
@@ -74,6 +84,7 @@ func NewServer(cfg *ServerConfig) *Server {
 	s := &Server{
 		engine: gin.Default(),
 		config: cfg,
+		routes: &routeRegistry{},
 	}
 
 	// 自动注册框架级中间件和默认路由（基于全局配置）
@@ -280,22 +291,58 @@ func (s *Server) RunSimple(addr ...string) error {
 	return s.engine.Run(listenAddr)
 }
 
-func (s *Server) RegisterHandler(instance interface{}) error {
-	return registerHandlers(s.engine, instance)
+// RegisterHandler 注册控制器为 HTTP 路由，支持声明式注册选项（需求 1/2）。
+// 不提供选项时，行为与仅靠编译期 meta 标签完全一致。
+func (s *Server) RegisterHandler(instance interface{}, opts ...RegisterOption) error {
+	routes, err := registerHandlers(s.engine, instance, opts...)
+	if err != nil {
+		return err
+	}
+	s.routes.add(routes)
+	s.controllers = append(s.controllers, ControllerRegistration{
+		Instance: instance,
+		Routes:   routes,
+	})
+	return nil
+}
+
+// Routes 返回已注册的最终生效路由列表（只读、无副作用），供路由查询与文档生成使用。
+func (s *Server) Routes() []RouteInfo {
+	return s.routes.all()
+}
+
+// Controllers 返回已注册控制器及其最终路由（只读），供 API 文档生成等消费。
+func (s *Server) Controllers() []ControllerRegistration {
+	out := make([]ControllerRegistration, len(s.controllers))
+	copy(out, s.controllers)
+	return out
 }
 
 func (s *Server) Group(relativePath string, handlers ...gin.HandlerFunc) *RouterGroup {
 	return &RouterGroup{
-		group: s.engine.Group(relativePath, handlers...),
+		group:  s.engine.Group(relativePath, handlers...),
+		server: s,
 	}
 }
 
-func (rg *RouterGroup) RegisterHandler(instance interface{}) error {
-	return registerHandlers(rg.group, instance)
+func (rg *RouterGroup) RegisterHandler(instance interface{}, opts ...RegisterOption) error {
+	routes, err := registerHandlers(rg.group, instance, opts...)
+	if err != nil {
+		return err
+	}
+	if rg.server != nil {
+		rg.server.routes.add(routes)
+		rg.server.controllers = append(rg.server.controllers, ControllerRegistration{
+			Instance: instance,
+			Routes:   routes,
+		})
+	}
+	return nil
 }
 
 func (rg *RouterGroup) Group(relativePath string, handlers ...gin.HandlerFunc) *RouterGroup {
 	return &RouterGroup{
-		group: rg.group.Group(relativePath, handlers...),
+		group:  rg.group.Group(relativePath, handlers...),
+		server: rg.server,
 	}
 }
