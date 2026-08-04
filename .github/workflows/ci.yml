@@ -80,7 +80,12 @@ jobs:
           done
 
   security:
-    name: Security Scan (gosec + govulncheck)
+    # Static analysis (gosec) is covered by the lint job via golangci-lint's
+    # gosec linter (see .golangci.yml), which honors //nolint:gosec exemptions.
+    # A standalone gosec step was removed: its Docker image pins go1.24 (cannot
+    # parse go.work requiring go>=1.26) and it ignores //nolint:gosec, causing
+    # false failures. This job focuses on vulnerability scanning.
+    name: Security Scan (govulncheck)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,11 +96,6 @@ jobs:
           cache-dependency-path: |
             **/go.sum
             go.work.sum
-
-      - name: Run gosec
-        uses: securego/gosec@v2.22.2
-        with:
-          args: -severity high ./...
 
       - name: Run govulncheck (all modules)
         run: |
