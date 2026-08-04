@@ -83,12 +83,3 @@ require (
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 )
-
-replace (
-	github.com/LandcLi/landc-go/api v0.5.0 => ../api
-	github.com/LandcLi/landc-go/frame v0.5.0 => ../frame
-	github.com/LandcLi/landc-go/log v0.5.0 => ../log
-	github.com/LandcLi/landc-go/tools v0.5.0 => ../tools
-)
-
-replace github.com/LandcLi/landc-go/saas v0.5.0 => ../saas
