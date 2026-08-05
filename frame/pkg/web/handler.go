@@ -30,22 +30,24 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 		var args []reflect.Value
 		args = append(args, instanceValue)
 
-		hasContext := false
 		paramIndex := 1
 
 		// 检查方法第一个参数是否是 context.Context 接口
 		if methodType.NumIn() > 1 {
 			firstParamType := methodType.In(1)
+			ginContextType := reflect.TypeOf((*gin.Context)(nil))
 			contextInterface := reflect.TypeOf((*context.Context)(nil)).Elem()
-			if firstParamType.Implements(contextInterface) {
-				hasContext = true
+			switch {
+			case firstParamType == ginContextType:
+				// 显式 *gin.Context：传入 gin 上下文（保留 gin API 能力）
 				paramIndex = 2
+				args = append(args, reflect.ValueOf(c))
+			case firstParamType.Implements(contextInterface):
+				// 任意 context.Context 接口：传入携带资源作用域的请求 ctx
+				// （c.Request.Context() 由资源作用域中间件写入 Scope，标准 Go 风格）
+				paramIndex = 2
+				args = append(args, reflect.ValueOf(c.Request.Context()))
 			}
-		}
-
-		if hasContext {
-			// *gin.Context 实现了 context.Context，直接传入
-			args = append(args, reflect.ValueOf(c))
 		}
 
 		if methodType.NumIn() > paramIndex {
