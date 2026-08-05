@@ -17,6 +17,7 @@ func main() {
 	if err := app.AddCommand(
 		NewInitCommand(),
 		NewGenCommand(),
+		NewMigrateDBContextCommand(),
 	); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
