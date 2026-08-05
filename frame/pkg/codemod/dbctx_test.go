@@ -85,7 +85,7 @@ func (d *userDao) Count() (int64, error) {
 	}
 }
 
-func TestMigrateDBContextSkipsConstructor(t *testing.T) {
+func TestMigrateDBContextSkipsNonResourceMethods(t *testing.T) {
 	dir := t.TempDir()
 	src := `package svc
 
@@ -96,24 +96,64 @@ func NewService() *Service { return &Service{db: db.GetDB()} }
 func (s *Service) Ping() error {
 	return s.db.Exec("SELECT 1").Error
 }
+
+func (a *Adapter) Type() string {
+	return "adapter"
+}
 `
 	if err := os.WriteFile(filepath.Join(dir, "service.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// 构造函数内 GetDB() 不应被替换（构造函数无 ctx）
 	if _, err := MigrateDBContext(dir); err != nil {
 		t.Fatalf("MigrateDBContext: %v", err)
 	}
 	out, _ := os.ReadFile(filepath.Join(dir, "service.go"))
 	s := string(out)
-	if !strings.Contains(s, "NewService() *Service") {
-		t.Errorf("constructor signature should be unchanged:\n%s", s)
+
+	// 构造函数：签名与内部 GetDB() 均不应被改
+	if !strings.Contains(s, "func NewService() *Service") || strings.Contains(s, "GetDBFrom(ctx)") {
+		t.Errorf("constructor should be untouched:\n%s", s)
 	}
-	if strings.Contains(s, "GetDBFrom(ctx)") {
-		t.Errorf("constructor body GetDB should NOT be migrated (no ctx there):\n%s", s)
+	// 不访问资源的方法：不加 ctx（修复 ①：只迁移资源访问方法）
+	if strings.Contains(s, "Ping(ctx") || strings.Contains(s, "Type(ctx") {
+		t.Errorf("non-resource methods should NOT get ctx:\n%s", s)
 	}
-	if !strings.Contains(s, "Ping(ctx context.Context)") {
-		t.Errorf("method Ping should get ctx:\n%s", s)
+}
+
+func TestMigrateDBContextRemovesCtxBackgroundAssign(t *testing.T) {
+	dir := t.TempDir()
+	src := `package dao
+
+import (
+	"context"
+
+	"github.com/example/db"
+)
+
+func (d *userDao) Create(user *User) error {
+	ctx := context.Background()
+	return db.GetDB().Create(user).Error
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "user_dao.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := MigrateDBContext(dir); err != nil {
+		t.Fatalf("MigrateDBContext: %v", err)
+	}
+	out, _ := os.ReadFile(filepath.Join(dir, "user_dao.go"))
+	s := string(out)
+
+	// 修复 ②：方法加 ctx 参数，且 ctx := context.Background() 被删除（避免 ctx := ctx）
+	if !strings.Contains(s, "func (d *userDao) Create(ctx context.Context, user *User) error") {
+		t.Errorf("method should get ctx param:\n%s", s)
+	}
+	if !strings.Contains(s, "db.GetDBFrom(ctx).Create(user)") {
+		t.Errorf("GetDB should migrate to GetDBFrom(ctx):\n%s", s)
+	}
+	if strings.Contains(s, "ctx := context.Background()") || strings.Contains(s, "ctx := ctx") {
+		t.Errorf("ctx background assign should be removed:\n%s", s)
 	}
 }

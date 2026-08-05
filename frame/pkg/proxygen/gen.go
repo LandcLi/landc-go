@@ -250,15 +250,31 @@ func Generate(cfg Config) error {
 		outputPath = filepath.Join(outDir, fileName)
 	}
 
-	// Compute interface package import path
+	// Compute interface package import path.
+	// findGoModDir returns an absolute path while cfg.Dir may be relative:
+	// resolve both to absolute before Rel to avoid an empty rel (which produced
+	// a malformed trailing-slash import path like "module/").
 	modDir := findGoModDir(dir)
 	ifaceImportPath := ""
 	if modDir != "" {
 		module, err := readModuleName(modDir)
 		if err == nil {
-			rel, _ := filepath.Rel(modDir, dir)
+			absDir, absErr := filepath.Abs(dir)
+			if absErr != nil {
+				return fmt.Errorf("resolve interface package dir: %w", absErr)
+			}
+			rel, relErr := filepath.Rel(modDir, absDir)
+			if relErr != nil {
+				return fmt.Errorf("compute interface package path: %w", relErr)
+			}
 			rel = filepath.ToSlash(rel)
-			ifaceImportPath = module + "/" + rel
+			if rel == "." {
+				rel = ""
+			}
+			ifaceImportPath = module
+			if rel != "" {
+				ifaceImportPath = module + "/" + rel
+			}
 		}
 	}
 	if ifaceImportPath == "" {

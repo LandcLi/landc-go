@@ -75,6 +75,14 @@ type LoginResponse struct {
 	}
 	s := string(code)
 
+	// 修复 ④：接口包 import 路径必须为真实路径（无尾部斜杠 malformed）
+	if !strings.Contains(s, `"example.com/demo/api/user"`) {
+		t.Errorf("generated code import path malformed (want .../api/user):\n%s", s)
+	}
+	if strings.Contains(s, `"example.com/demo/"`) || strings.Contains(s, `"/.`) {
+		t.Errorf("generated code has malformed trailing-slash import path:\n%s", s)
+	}
+
 	// 需求 5：显式构造函数
 	if !strings.Contains(s, "func NewUserControllerProxy(baseURL string, opts ...di.RemoteOption) user.UserController {") {
 		t.Error("generated code missing NewUserControllerProxy explicit constructor")

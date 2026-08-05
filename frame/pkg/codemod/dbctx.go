@@ -98,7 +98,10 @@ func (m *migrator) inspect(n ast.Node) bool {
 		if strings.HasPrefix(node.Name.Name, "New") {
 			return false // 构造函数：不加 ctx
 		}
-		if node.Type.Params != nil && !hasContextParam(node.Type.Params) {
+		// 仅当方法体访问资源（GetDB/GetCache/context.Background）时才加 ctx，
+		// 避免误迁移不访问资源的辅助方法（纯配置解析、测试辅助等）。
+		if node.Body != nil && bodyUsesResource(node.Body) &&
+			node.Type.Params != nil && !hasContextParam(node.Type.Params) {
 			addCtxParam(node.Type.Params, node.Type.Params.Opening+1)
 			m.changed = true
 		}
@@ -163,10 +166,40 @@ func (m *migrator) migrateBody(body *ast.BlockStmt) {
 		return true
 	})
 
-	// context.Background() 替换为 ctx（需替换节点，自定义递归）
-	for i, stmt := range body.List {
-		body.List[i] = rewriteStmt(stmt, &m.changed)
+	// context.Background() 替换为 ctx（需替换节点，自定义递归）；
+	// ctx := context.Background() 等赋值被删除（返回 nil）
+	var list []ast.Stmt
+	for _, stmt := range body.List {
+		if r := rewriteStmt(stmt, &m.changed); r != nil {
+			list = append(list, r)
+		}
 	}
+	body.List = list
+}
+
+// bodyUsesResource 报告方法体是否访问框架资源（GetDB/GetCache/context.Background）。
+func bodyUsesResource(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		switch sel.Sel.Name {
+		case "GetDB", "GetCache", "Background":
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // hasContextParam 报告参数列表第一个参数是否为 context.Context。
@@ -223,17 +256,28 @@ func ensureContextImport(f *ast.File) {
 }
 
 // rewriteStmt 递归改写语句中的 context.Background() 为 ctx。
+// 返回 nil 表示该语句被删除（如 ctx := context.Background()，因 ctx 已为方法参数）。
 //
 //nolint:gocyclo // AST 遍历器的 switch 分支结构，豁免复杂度告警
 func rewriteStmt(stmt ast.Stmt, changed *bool) ast.Stmt {
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		for i, st := range s.List {
-			s.List[i] = rewriteStmt(st, changed)
+		var list []ast.Stmt
+		for _, st := range s.List {
+			if r := rewriteStmt(st, changed); r != nil {
+				list = append(list, r)
+			}
 		}
+		s.List = list
 	case *ast.ExprStmt:
 		s.X = rewriteExpr(s.X, changed)
 	case *ast.AssignStmt:
+		// ctx := context.Background() / ctx = context.Background()：
+		// 方法已加 ctx 参数，删除该赋值，避免自引用 ctx := ctx。
+		if isCtxBackgroundAssign(s) {
+			*changed = true
+			return nil
+		}
 		for i, r := range s.Rhs {
 			s.Rhs[i] = rewriteExpr(r, changed)
 		}
@@ -287,11 +331,46 @@ func rewriteStmt(stmt ast.Stmt, changed *bool) ast.Stmt {
 			s.Body[i] = rewriteStmt(st, changed)
 		}
 	case *ast.DeclStmt:
-		// 不做表达式替换（var/const 声明保持）
+		// var ctx = context.Background()：ctx 已为参数，删除。
+		if gd, ok := s.Decl.(*ast.GenDecl); ok && gd.Tok == token.VAR {
+			for _, spec := range gd.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok && len(vs.Names) == 1 &&
+					vs.Names[0].Name == "ctx" && len(vs.Values) == 1 && isBackgroundCall(vs.Values[0]) {
+					*changed = true
+					return nil
+				}
+			}
+		}
 	case *ast.EmptyStmt, *ast.BranchStmt, *ast.LabeledStmt, *ast.SelectStmt, *ast.TypeSwitchStmt, *ast.CommClause:
 		// 保持默认（覆盖常见场景即可）
 	}
 	return stmt
+}
+
+// isCtxBackgroundAssign 判断是否为 ctx := context.Background() 或 ctx = context.Background()。
+func isCtxBackgroundAssign(s *ast.AssignStmt) bool {
+	if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
+		return false
+	}
+	id, ok := s.Lhs[0].(*ast.Ident)
+	if !ok || id.Name != "ctx" {
+		return false
+	}
+	return isBackgroundCall(s.Rhs[0])
+}
+
+// isBackgroundCall 判断表达式是否为 context.Background() 调用。
+func isBackgroundCall(e ast.Expr) bool {
+	call, ok := e.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	x, ok := sel.X.(*ast.Ident)
+	return ok && x.Name == "context" && sel.Sel.Name == "Background" && len(call.Args) == 0
 }
 
 // rewriteExpr 递归改写表达式中的 context.Background() 为 ctx。

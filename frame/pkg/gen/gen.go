@@ -12,6 +12,19 @@ import (
 )
 
 // NewGenCommand 创建代码生成命令
+// GenSubcommands 返回 gen 的全部子命令（api / service / dao / lib / all），
+// 供 landc CLI 的 gen 命令挂载（避免 gen 命令嵌套 gen 导致 landc gen lib 不可用）。
+func GenSubcommands() []*cmd.Command {
+	return []*cmd.Command{
+		newGenAPICommand(),
+		newGenServiceCommand(),
+		newGenDAOCommand(),
+		newGenLibCommand(),
+		newGenAllCommand(),
+	}
+}
+
+// NewGenCommand 创建 gen 命令（含全部子命令）。
 func NewGenCommand() *cmd.Command {
 	genCmd := cmd.NewCommand("gen", "Generate code for api/service/dao layers", nil)
 

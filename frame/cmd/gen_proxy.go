@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/LandcLi/landc-go/frame/pkg/cmd"
+	landcgen "github.com/LandcLi/landc-go/frame/pkg/gen"
 	"github.com/LandcLi/landc-go/frame/pkg/proxygen"
 )
 
@@ -12,9 +13,8 @@ import (
 func NewGenCommand() *cmd.Command {
 	genCmd := cmd.NewCommand("gen", "Code generation tools", nil)
 
-	_ = genCmd.AddCommand(
-		NewGenProxyCommand(),
-	)
+	_ = genCmd.AddCommand(NewGenProxyCommand())
+	_ = genCmd.AddCommand(landcgen.GenSubcommands()...)
 
 	return genCmd
 }
@@ -26,7 +26,7 @@ func NewGenProxyCommand() *cmd.Command {
 		gatewayName := parser.GetOpt("gateway-name")
 
 		if interfaceName == "" {
-			return fmt.Errorf("flag -type is required (e.g. -type UserController)")
+			return fmt.Errorf("flag --type is required (e.g. --type UserController)")
 		}
 		if gatewayName == "" {
 			// Default: lowercase interface name + ".controller"
