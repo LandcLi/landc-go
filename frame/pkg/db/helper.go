@@ -8,9 +8,10 @@ import (
 
 type txKey struct{}
 
-// Transaction 执行事务
+// Transaction 执行事务。
+// 连接基于 ctx 中的资源作用域解析（db.GetDBFrom）：无作用域时回退全局连接。
 func Transaction(ctx context.Context, fn func(ctx context.Context) error) error {
-	db := GetDB()
+	db := GetDBFrom(ctx)
 	if db == nil {
 		return gorm.ErrInvalidDB
 	}
@@ -21,12 +22,12 @@ func Transaction(ctx context.Context, fn func(ctx context.Context) error) error 
 	})
 }
 
-// GetTx 从 context 获取事务实例，如果没有则返回全局 DB
+// GetTx 从 context 获取事务实例；没有事务时返回基于作用域解析的连接（无作用域回退全局）。
 func GetTx(ctx context.Context) *gorm.DB {
 	if tx, ok := ctx.Value(txKey{}).(*gorm.DB); ok {
 		return tx
 	}
-	return GetDB()
+	return GetDBFrom(ctx)
 }
 
 // Paginate 分页查询辅助

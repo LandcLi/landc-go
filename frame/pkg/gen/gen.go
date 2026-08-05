@@ -19,6 +19,7 @@ func NewGenCommand() *cmd.Command {
 		newGenAPICommand(),
 		newGenServiceCommand(),
 		newGenDAOCommand(),
+		newGenLibCommand(),
 		newGenAllCommand(),
 	); err != nil {
 		return nil
@@ -57,6 +58,17 @@ func newGenDAOCommand() *cmd.Command {
 		}
 		module := getModuleOpt(parser)
 		return generateDAO(name, module)
+	})
+}
+
+func newGenLibCommand() *cmd.Command {
+	return cmd.NewCommand("lib", "Generate library-mode entry (serverlib/RegisterToRouter)", func(ctx context.Context, parser *cmd.Parser) error {
+		name := parser.GetArg(0)
+		if name == "" {
+			return fmt.Errorf("service name is required, usage: landc gen lib <name>")
+		}
+		module := getModuleOpt(parser)
+		return generateLib(name, module)
 	})
 }
 
@@ -184,6 +196,21 @@ func generateDAO(name, module string) error {
 	}
 
 	fmt.Printf("  ✓ DAO layer generated: dao/%s_dao.go\n", data.NameLower)
+	return nil
+}
+
+func generateLib(name, module string) error {
+	data := newTemplateData(name, module)
+
+	if err := os.MkdirAll("serverlib", 0o755); err != nil {
+		return fmt.Errorf("create serverlib dir: %w", err)
+	}
+	if err := renderToFile(filepath.Join("serverlib", "register.go"), tplLibrary, data); err != nil {
+		return err
+	}
+
+	fmt.Printf("  ✓ Library entry generated: serverlib/register.go\n")
+	fmt.Println("  -> 请补全：控制器清单（一个服务可能有多个 controller，逐一注册）、鉴权中间件与初始化")
 	return nil
 }
 

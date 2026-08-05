@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -47,6 +48,37 @@ func TestGenerateAll(t *testing.T) {
 		path := filepath.Join(tmpDir, f)
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			t.Errorf("Expected file not generated: %s", f)
+		}
+	}
+}
+
+func TestGenerateLib(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(originalDir)
+
+	_ = os.WriteFile("go.mod", []byte("module testproject\n\ngo 1.24.0\n"), 0o600)
+
+	if err := generateLib("user", "testproject"); err != nil {
+		t.Fatalf("generateLib failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, "serverlib", "register.go"))
+	if err != nil {
+		t.Fatalf("read serverlib/register.go: %v", err)
+	}
+	s := string(content)
+	for _, want := range []string{
+		"func RegisterToRouter",
+		"func WithAuth",
+		"func WithWebOptions",
+		"user.GetUserController()",
+		`_ "testproject/internal"`,
+		"frameconfig.GetConfig()",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("generated serverlib missing %q", want)
 		}
 	}
 }

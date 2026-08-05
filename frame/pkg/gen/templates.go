@@ -424,3 +424,59 @@ type List{{.NameCamel}}Output struct {
 	Page  int
 }
 `
+
+// tplLibrary 库模式入口模板：生成 serverlib/RegisterToRouter 骨架。
+// 服务作者需补全：控制器清单（多 controller 逐一注册）、鉴权中间件与初始化。
+var tplLibrary = `package serverlib
+
+import (
+	"fmt"
+
+	frameconfig "github.com/LandcLi/landc-go/frame/pkg/config"
+	"github.com/LandcLi/landc-go/frame/pkg/web"
+
+	"{{.Module}}/api/{{.NameLower}}"
+
+	_ "{{.Module}}/internal" // 触发默认实现注册链（di.Provide）
+)
+
+// options 为库入口配置。
+type options struct {
+	authEnabled bool
+	webOpts     []web.RegisterOption
+}
+
+// Option 为库入口配置项。
+type Option func(*options)
+
+// WithAuth 是否装配与独立部署一致的全局鉴权中间件（默认 true）。
+func WithAuth(enabled bool) Option {
+	return func(o *options) { o.authEnabled = enabled }
+}
+
+// WithWebOptions 透传 landc-go 注册选项（前缀 / 方法覆盖 / 方法级与控制器级中间件）。
+func WithWebOptions(opts ...web.RegisterOption) Option {
+	return func(o *options) { o.webOpts = append(o.webOpts, opts...) }
+}
+
+// RegisterToRouter 装配 {{.Name}} 服务的默认实现并注册到 server。
+// 只装配、不接管：不创建 engine、不调用 Run；调用方可继续追加自有路由。
+// 前置条件：宿主进程已完成 landc-go 框架 bootstrap（配置/DB/缓存/JWT）。
+func RegisterToRouter(s *web.Server, opts ...Option) error {
+	o := &options{authEnabled: true}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	// 防御性检查：框架配置未初始化时返回友好错误，而非 panic
+	if frameconfig.GetConfig() == nil {
+		return fmt.Errorf("serverlib: framework not bootstrapped; initialize global config first")
+	}
+
+	// TODO: 补全控制器清单（一个服务可能有多个 controller，逐一注册）
+	if err := s.RegisterHandler({{.NameLower}}.Get{{.NameCamel}}Controller(), o.webOpts...); err != nil {
+		return err
+	}
+	return nil
+}
+`
