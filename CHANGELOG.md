@@ -5,6 +5,31 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] - 2026-08-05
+
+### 新增
+
+- **web 注册选项**：`RegisterHandler(opts...)` 新增 `WithPrefix`（统一前缀）、`WithMethodPath`/`WithMethodHTTPMethod`（单方法路径/方法覆盖）、`WithMethodMiddleware`/`WithControllerMiddleware`（方法级/控制器级中间件，多个按序执行）——运行时选项优先于编译期 meta 标签，不传选项行为完全一致（下游本地集成需求 1+2）
+- **路由查询**：`Server.Routes()` / `Server.Controllers()` 返回**最终生效**路由（Method/Path/Description/HandlerName），只读无副作用，供路由查询与文档生成共用（需求 4）
+- **proxy 显式构造**：生成代码新增 `NewXXXProxy(baseURL)` 构造函数（与 `ProvideRemote` 等价），原 `init()` + blank import 用法保留兼容（需求 5）
+- **OpenAPI 自动收集**：`openapi.RegisterServer(server)` 从已注册控制器生成文档（路径为最终生效路由）、`RegisterControllerRoutes`、`WriteFile`（落盘 openapi.json）——供 CI 生成 API 文档（需求 6）
+- **命名资源作用域**：`resource.Scope` + `config.InitNamedConfig` / `db.InitNamedDB` / `cache.InitNamedCache(WithConfig|WithLocal)` + `GetXxxFrom(ctx)`；`web.RegisterLibrary` 注册时校验命名资源并自动注入作用域中间件——库模式嵌入服务可使用宿主为之准备的**独立** DB/缓存/配置，未指定字段回退全局（不静默回退，防数据写错库）
+- **`landc migrate-dbctx` 命令**：自动为 DAO/service 接口与方法注入 `ctx context.Context` 参数，迁移 `db.GetDB()`→`db.GetDBFrom(ctx)`、`cache.GetCache()`→`cache.GetCacheFrom(ctx)`、`context.Background()`→`ctx`
+- **`landc gen lib` 命令**：生成库模式入口 `serverlib/RegisterToRouter` 骨架（Gateway 模式 + `WithAuth`/`WithWebOptions` + 防御性 bootstrap 检查）
+- **`db.GetTx` / `Transaction` 作用域感知**：连接从 ctx 解析（`GetDBFrom`），生成 DAO 自动支持命名资源
+- **web handler ctx 语义**：controller 第一参数为 `context.Context` 接口时传入携带资源作用域的请求 ctx（`*gin.Context` 用法保留）
+
+### 修复
+
+- **migrate-dbctx 误迁移**：仅给方法体访问资源（GetDB/GetCache/context.Background）的方法加 ctx，避免误改辅助方法；删除 `ctx := context.Background()` 赋值（防 `ctx := ctx` 自引用）
+- **`landc gen lib` 不可用**：`pkg/gen` 子命令经 `GenSubcommands()` 正确挂载（原嵌套成 `gen gen`）
+- **proxygen 接口包路径推导**：`filepath.Rel` 前统一转为绝对路径，修复生成 `import "module/"` 尾部斜杠 malformed
+- **gen proxy 参数提示**：统一为 `--type`（解析器仅识别 `--` 前缀）
+
+### 破坏性变更
+
+- 无（所有新能力不显式使用时行为与 v0.5.0 完全一致；现有全局单例 API 保留）
+
 ## [0.5.0] - 2026-08-04
 
 ### 新增
