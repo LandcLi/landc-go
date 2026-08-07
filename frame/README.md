@@ -56,10 +56,24 @@ func main() {
         middleware.Recovery(),
     )
     // 一行注册，自动生成路由 GET /api/hello
-    server.RegisterHandler(&HelloController{})
-    server.Run()
+    if err := server.RegisterHandler(&HelloController{}); err != nil {
+        panic(err)
+    }
+    if err := server.Run(); err != nil {
+        panic(err)
+    }
 }
 ```
+
+运行并验证：
+
+```bash
+go run main.go
+curl 'http://localhost:8080/api/hello?name=landc'
+# {"code":10000,"message":"success","data":{"message":"Hello, landc!"}}
+```
+
+> 完整的 8 步上手指南（路由 / 参数绑定 / 统一响应 / 配置 / 数据库 / 缓存 / JWT / 代码生成）见 [根 README](https://github.com/LandcLi/landc-go)。
 
 ## 功能模块
 
