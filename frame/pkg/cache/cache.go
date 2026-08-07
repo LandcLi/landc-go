@@ -22,6 +22,9 @@ type Cache interface {
 	Expire(ctx context.Context, key string, expiration time.Duration) error
 	GetObject(ctx context.Context, key string, dest interface{}) error
 	SetObject(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	// Incr 原子自增 key 并刷新 TTL（ttl > 0 时），返回自增后的值。
+	// 用于计数限流等并发安全计数场景。
+	Incr(ctx context.Context, key string, ttl time.Duration) (int64, error)
 }
 
 var (
@@ -183,6 +186,20 @@ func (c *RedisCache) SetObject(ctx context.Context, key string, value interface{
 	return c.client.Set(ctx, key, data, expiration).Err()
 }
 
+// Incr 原子自增：INCR 首次创建时设置 TTL（避免每次 INCR 都重置 TTL 导致窗口滑动）。
+func (c *RedisCache) Incr(ctx context.Context, key string, ttl time.Duration) (int64, error) {
+	n, err := c.client.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	if n == 1 && ttl > 0 {
+		if err := c.client.Expire(ctx, key, ttl).Err(); err != nil {
+			return 0, err
+		}
+	}
+	return n, nil
+}
+
 // ==================== LocalCache ====================
 
 // LocalCache 基于 tools/cache LRU 实现的本地缓存（与 Cache 接口兼容）
@@ -250,4 +267,9 @@ func (c *LocalCache) GetObject(ctx context.Context, key string, dest interface{}
 func (c *LocalCache) SetObject(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	c.cache.SetWithExpiration(key, value, expiration)
 	return nil
+}
+
+// Incr 委托 tools/cache 的原子自增（锁内读-改-写）。
+func (c *LocalCache) Incr(ctx context.Context, key string, ttl time.Duration) (int64, error) {
+	return c.cache.Incr(key, ttl)
 }

@@ -3,6 +3,7 @@ package cache
 import (
 	"container/list"
 	"context"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -120,6 +121,62 @@ func (c *lruCache) Delete(key string) {
 	if elem, exists := c.items[key]; exists {
 		c.removeElement(elem)
 	}
+}
+
+// Incr 原子自增 key 的数值并刷新 TTL（ttl > 0 时），返回自增后的值。
+// 用于计数限流等需要"读-改-写"原子性的场景；锁内完成，并发安全。
+func (c *lruCache) Incr(key string, ttl time.Duration) (int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if elem, exists := c.items[key]; exists {
+		item := elem.Value.(*lruEntry).value
+		if item.IsExpired() {
+			c.removeElement(elem)
+		} else {
+			n := toInt64(item.Value) + 1
+			item.Value = n
+			if ttl > 0 {
+				item.Expiration = time.Now().Add(ttl).UnixNano()
+			}
+			item.accessTime = time.Now().UnixNano()
+			c.lruList.MoveToFront(elem)
+			return n, nil
+		}
+	}
+
+	n := int64(1)
+	item := &CacheItem{
+		Value:      n,
+		accessTime: time.Now().UnixNano(),
+	}
+	if ttl > 0 {
+		item.Expiration = time.Now().Add(ttl).UnixNano()
+	}
+	elem := c.lruList.PushFront(&lruEntry{key: key, value: item})
+	c.items[key] = elem
+	if c.capacity > 0 && c.lruList.Len() > c.capacity {
+		c.evict()
+	}
+	return n, nil
+}
+
+// toInt64 把缓存中存储的值解析为 int64（支持 int 系/float64/数字字符串）。
+func toInt64(v interface{}) int64 {
+	switch n := v.(type) {
+	case int:
+		return int64(n)
+	case int64:
+		return n
+	case int32:
+		return int64(n)
+	case float64:
+		return int64(n)
+	case string:
+		i, _ := strconv.ParseInt(n, 10, 64)
+		return i
+	}
+	return 0
 }
 
 func (c *lruCache) Clear() {
