@@ -5,6 +5,22 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.0] - 2026-08-07
+
+### 新增
+
+- **tools/security AES-GCM 加解密**：`Cipher`（`NewCipher`/`NewCipherFromString`，16/24/32 字节密钥，hex 或原始），`Encrypt`/`Decrypt`（crypto/rand 随机 nonce、`enc:` 前缀 + base64、无前缀明文兼容降级）；密钥由调用方传入，不绑定配置来源
+- **tools/ratelimit 缓存限流**：`Cache` 接口（Get/Set/Delete/Exists + **原子 `Incr`**）+ `IntervalLimiter`（间隔限流）+ `CountLimiter`（计数限流），缓存由调用方注入，fail-open
+- **tools/cache 原子自增**：`GlobalCache.Incr`（锁内原子读-改-写 + TTL 刷新）
+- **tools/verifycode 验证码组件**：`Manager`（生成 + 发送间隔 60s + 每日上限 10 + TTL 5min 存储 + 一次性校验防重放），选项 `WithCodeLength`/`WithTTL`/`WithSendInterval`/`WithDailyLimit`，crypto/rand 数字码
+- **frame/cache 增强**：`Cache` 接口新增 `Incr`（`RedisCache`：INCR + 首次创建设 TTL 避免窗口滑动；`LocalCache`：委托 tools）；`AsToolsCache` 适配器（frame Cache ↔ tools/ratelimit.Cache）
+- **frame/pkg/ratelimit**（新包）：`AllowInterval(ctx, key, interval)` / `AllowCount(ctx, key, limit, window)`——缓存从请求 ctx 解析（`GetCacheFrom`），库模式嵌入自动使用命名缓存
+- **frame/pkg/verifycode**（新包）：`Generate(ctx, key)` / `Verify(ctx, key, input)`——同上，缓存从 ctx 解析
+
+### 破坏性变更
+
+- `frame/pkg/cache.Cache` 接口新增 `Incr` 方法：框架内实现已同步（RedisCache / LocalCache）；外部自定义实现该接口的类型需补充该方法
+
 ## [0.6.0] - 2026-08-05
 
 ### 新增
