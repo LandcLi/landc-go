@@ -1,0 +1,11 @@
+go 1.26
+
+// 本地 monorepo 联调：use 指向 landc-go 各模块。
+// 独立使用（脱离仓库）时删除本文件，并在 go.mod 中 require 线上版本。
+use (
+	.
+	../../frame
+	../../api
+	../../log
+	../../tools
+)

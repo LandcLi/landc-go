@@ -1,9 +1,12 @@
 package gen
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"go/format"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -12,13 +15,14 @@ import (
 )
 
 // NewGenCommand 创建代码生成命令
-// GenSubcommands 返回 gen 的全部子命令（api / service / dao / lib / all），
+// GenSubcommands 返回 gen 的全部子命令（api / service / dao / model / lib / all），
 // 供 landc CLI 的 gen 命令挂载（避免 gen 命令嵌套 gen 导致 landc gen lib 不可用）。
 func GenSubcommands() []*cmd.Command {
 	return []*cmd.Command{
 		newGenAPICommand(),
 		newGenServiceCommand(),
 		newGenDAOCommand(),
+		newGenModelCommand(),
 		newGenLibCommand(),
 		newGenAllCommand(),
 	}
@@ -26,12 +30,13 @@ func GenSubcommands() []*cmd.Command {
 
 // NewGenCommand 创建 gen 命令（含全部子命令）。
 func NewGenCommand() *cmd.Command {
-	genCmd := cmd.NewCommand("gen", "Generate code for api/service/dao layers", nil)
+	genCmd := cmd.NewCommand("gen", "Generate code for api/service/dao/model layers", nil)
 
 	if err := genCmd.AddCommand(
 		newGenAPICommand(),
 		newGenServiceCommand(),
 		newGenDAOCommand(),
+		newGenModelCommand(),
 		newGenLibCommand(),
 		newGenAllCommand(),
 	); err != nil {
@@ -42,7 +47,7 @@ func NewGenCommand() *cmd.Command {
 }
 
 func newGenAPICommand() *cmd.Command {
-	return cmd.NewCommand("api", "Generate API layer code", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("api", "Generate API layer code", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("model name is required, usage: landc gen api <name>")
@@ -50,10 +55,12 @@ func newGenAPICommand() *cmd.Command {
 		module := getModuleOpt(parser)
 		return generateAPI(name, module)
 	})
+	command.AddOption("module", true)
+	return command
 }
 
 func newGenServiceCommand() *cmd.Command {
-	return cmd.NewCommand("service", "Generate Service layer code", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("service", "Generate Service layer code", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("model name is required, usage: landc gen service <name>")
@@ -61,10 +68,12 @@ func newGenServiceCommand() *cmd.Command {
 		module := getModuleOpt(parser)
 		return generateService(name, module)
 	})
+	command.AddOption("module", true)
+	return command
 }
 
 func newGenDAOCommand() *cmd.Command {
-	return cmd.NewCommand("dao", "Generate DAO layer code", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("dao", "Generate DAO layer code", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("model name is required, usage: landc gen dao <name>")
@@ -72,10 +81,25 @@ func newGenDAOCommand() *cmd.Command {
 		module := getModuleOpt(parser)
 		return generateDAO(name, module)
 	})
+	command.AddOption("module", true)
+	return command
+}
+
+func newGenModelCommand() *cmd.Command {
+	command := cmd.NewCommand("model", "Generate model layer code", func(ctx context.Context, parser *cmd.Parser) error {
+		name := parser.GetArg(0)
+		if name == "" {
+			return fmt.Errorf("model name is required, usage: landc gen model <name>")
+		}
+		module := getModuleOpt(parser)
+		return generateModel(name, module)
+	})
+	command.AddOption("module", true)
+	return command
 }
 
 func newGenLibCommand() *cmd.Command {
-	return cmd.NewCommand("lib", "Generate library-mode entry (serverlib/RegisterToRouter)", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("lib", "Generate library-mode entry (serverlib/RegisterToRouter)", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("service name is required, usage: landc gen lib <name>")
@@ -83,10 +107,12 @@ func newGenLibCommand() *cmd.Command {
 		module := getModuleOpt(parser)
 		return generateLib(name, module)
 	})
+	command.AddOption("module", true)
+	return command
 }
 
 func newGenAllCommand() *cmd.Command {
-	return cmd.NewCommand("all", "Generate all layers (api + service + dao + model)", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("all", "Generate all layers (api + service + dao + model)", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("model name is required, usage: landc gen all <name>")
@@ -107,8 +133,27 @@ func newGenAllCommand() *cmd.Command {
 		}
 
 		fmt.Printf("\n✓ All layers generated for '%s'\n", name)
+
+		// --check：生成后跑 go build 校验四层可编译
+		if parser.HasOpt("check") {
+			fmt.Println("  -> running `go build ./...` to verify generated code...")
+			if err := runGoBuildCheck(); err != nil {
+				return fmt.Errorf("generated code failed to build (see output above)")
+			}
+			fmt.Println("  -> build check passed")
+		}
 		return nil
 	})
+	command.AddOption("check", false)
+	return command
+}
+
+// runGoBuildCheck 在当前目录执行 go build ./...，用于校验生成代码可编译。
+func runGoBuildCheck() error {
+	c := exec.Command("go", "build", "./...")
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
 }
 
 // ============ 模板数据 ============
@@ -256,13 +301,24 @@ func renderToFile(path, tplContent string, data interface{}) error {
 		return fmt.Errorf("parse template failed: %w", err)
 	}
 
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("create file failed: %w", err)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return fmt.Errorf("execute template failed: %w", err)
 	}
-	defer f.Close()
 
-	return tmpl.Execute(f, data)
+	content := buf.Bytes()
+	// 生成的 Go 代码自动 gofmt；异常时保留原文并提示，不中断生成
+	if formatted, err := format.Source(content); err == nil {
+		content = formatted
+	} else {
+		fmt.Printf("  - Warning: gofmt failed for %s (please format manually): %v\n", path, err)
+	}
+
+	//nolint:gosec // 生成文件无敏感信息，0644 便于团队共享
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		return fmt.Errorf("write file failed: %w", err)
+	}
+	return nil
 }
 
 func detectModule() string {

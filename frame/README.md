@@ -56,20 +56,37 @@ func main() {
         middleware.Recovery(),
     )
     // 一行注册，自动生成路由 GET /api/hello
-    server.RegisterHandler(&HelloController{})
-    server.Run()
+    if err := server.RegisterHandler(&HelloController{}); err != nil {
+        panic(err)
+    }
+    if err := server.Run(); err != nil {
+        panic(err)
+    }
 }
 ```
+
+运行并验证：
+
+```bash
+go run main.go
+curl 'http://localhost:8080/api/hello?name=landc'
+# {"code":10000,"message":"success","data":{"message":"Hello, landc!"}}
+```
+
+> 完整的 8 步上手指南（路由 / 参数绑定 / 统一响应 / 配置 / 数据库 / 缓存 / JWT / 代码生成）见 [根 README](https://github.com/LandcLi/landc-go)。
 
 ## 功能模块
 
 | 包 | 功能 |
 |----|------|
-| `pkg/web` | Web 引擎（Meta 路由 / 参数绑定 / 文件上传） |
+| `pkg/web` | Web 引擎（Meta 路由 / 参数绑定 / 文件上传 / **注册选项** / **Routes() 路由查询**） |
 | `pkg/di` | 依赖注入（泛型容器 / 懒加载单例） |
-| `pkg/config` | 配置管理（YAML / 环境变量覆盖 / 热更新） |
-| `pkg/db` | 数据库（GORM 集成 / 事务 / 分页 / 版本化迁移） |
-| `pkg/cache` | Redis 缓存 |
+| `pkg/config` | 配置管理（YAML / 环境变量覆盖 / 热更新 / **命名配置**） |
+| `pkg/db` | 数据库（GORM 集成 / 事务 / 分页 / 版本化迁移 / **命名连接**） |
+| `pkg/cache` | Redis 缓存（**原子 Incr / AsToolsCache 适配 / 命名缓存**） |
+| `pkg/resource` | **命名资源作用域**（库模式嵌入独立配置/DB/缓存） |
+| `pkg/ratelimit` | **缓存限流包装**（AllowInterval/AllowCount，从 ctx 解析命名缓存） |
+| `pkg/verifycode` | **验证码包装**（Generate/Verify，从 ctx 解析命名缓存） |
 | `pkg/auth` | JWT 认证 |
 | `pkg/middleware` | 中间件（Logger / Recovery / CORS / Trace / Auth / 限流 / 熔断） |
 | `pkg/response` | 统一响应格式 |
@@ -77,10 +94,11 @@ func main() {
 | `pkg/session` | Session（Redis / Memory） |
 | `pkg/websocket` | WebSocket（Hub / 房间 / 广播 / 心跳） |
 | `pkg/cron` | 定时任务 |
-| `pkg/openapi` | OpenAPI 3.0 文档自动生成 + Swagger UI |
+| `pkg/openapi` | OpenAPI 3.0 文档自动生成 + Swagger UI（**RegisterServer 自动收集**） |
 | `pkg/registry` | 服务注册 / 发现（etcd） |
 | `pkg/grpc` | gRPC 服务端 / 客户端 / 连接池 |
-| `pkg/gen` | 代码生成（`landc gen api/service/dao/all <name>`） |
+| `pkg/gen` | 代码生成（`landc gen api/service/dao/lib/all <name>`） |
+| `pkg/codemod` | 代码迁移（`landc migrate-dbctx`） |
 | `pkg/trace` | 链路追踪 |
 | `pkg/meta` | 元数据（Meta Tag 解析） |
 | `pkg/bootstrap` | 应用生命周期管理 |
@@ -109,11 +127,18 @@ func main() {
 # 初始化项目
 landc init myapp
 
-# 代码生成（生成 api/service/dao/model 四层代码）
+# 代码生成（api/service/dao/model 四层 + 库模式入口）
 landc gen all User
 landc gen api User
 landc gen service User
 landc gen dao User
+landc gen lib user          # 生成库模式入口 serverlib/RegisterToRouter 骨架
+
+# 远程代理 SDK（生成 NewXXXProxy 显式构造函数）
+landc gen proxy --type UserController
+
+# DAO/service 迁移 ctx（GetDB()→GetDBFrom(ctx) / context.Background()→ctx）
+landc migrate-dbctx <dir> [dir ...]
 ```
 
 ## 参数绑定规则

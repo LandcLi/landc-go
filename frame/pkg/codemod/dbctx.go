@@ -27,6 +27,16 @@ import (
 // 调用点（如 service 调用 dao）不在本工具范围内——迁移后请以 `go build` 的错误列表
 // 逐个补齐调用处的 ctx 参数。
 func MigrateDBContext(dir string) ([]string, error) {
+	return migrateDir(dir, false)
+}
+
+// MigrateDBContextDryRun 仅报告将修改的文件，不写盘。
+// 用于迁移前预览（landc migrate-dbctx --dry-run），避免破坏性改动误伤。
+func MigrateDBContextDryRun(dir string) ([]string, error) {
+	return migrateDir(dir, true)
+}
+
+func migrateDir(dir string, dryRun bool) ([]string, error) {
 	var modified []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -35,7 +45,7 @@ func MigrateDBContext(dir string) ([]string, error) {
 		if info.IsDir() || !strings.HasSuffix(path, ".go") {
 			return nil
 		}
-		changed, err := migrateFile(path)
+		changed, err := migrateFile(path, dryRun)
 		if err != nil {
 			return err
 		}
@@ -51,7 +61,7 @@ func MigrateDBContext(dir string) ([]string, error) {
 	return modified, err
 }
 
-func migrateFile(path string) (bool, error) {
+func migrateFile(path string, dryRun bool) (bool, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return false, err
@@ -78,6 +88,10 @@ func migrateFile(path string) (bool, error) {
 	var buf bytes.Buffer
 	if err := format.Node(&buf, fset, f); err != nil {
 		return false, err
+	}
+	if dryRun {
+		// dry-run：仅报告改动，不写盘
+		return true, nil
 	}
 	//nolint:gosec // 源码文件无敏感信息，0644 便于团队共享
 	return true, os.WriteFile(path, buf.Bytes(), 0o644)

@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/LandcLi/landc-go/frame/pkg/cmd"
 )
@@ -20,7 +23,7 @@ type InitInput struct {
 }
 
 func NewInitCommand() *cmd.Command {
-	return cmd.NewCommand("init", "Initialize a new landc-go project", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("init", "Initialize a new landc-go project", func(ctx context.Context, parser *cmd.Parser) error {
 		input := &InitInput{
 			Name: parser.GetArg(0),
 		}
@@ -43,6 +46,12 @@ func NewInitCommand() *cmd.Command {
 
 		return RunInit(ctx, input)
 	})
+	command.AddOption("path", true)
+	command.AddOption("module", true)
+	command.AddOption("force,f", false)
+	command.AddOption("no-git", false)
+	command.AddOption("no-readme", false)
+	return command
 }
 
 func RunInit(ctx context.Context, input *InitInput) error {
@@ -64,6 +73,7 @@ func RunInit(ctx context.Context, input *InitInput) error {
 	fmt.Printf("Project name: %s\n", input.Name)
 	fmt.Printf("Project path: %s\n", projectPath)
 	fmt.Printf("Module name: %s\n", moduleName)
+	checkGoVersionWarn()
 
 	absPath, err := filepath.Abs(projectPath)
 	if err != nil {
@@ -83,6 +93,10 @@ func RunInit(ctx context.Context, input *InitInput) error {
 	// Run go mod tidy to generate go.sum
 	if err := runGoModTidy(absPath); err != nil {
 		fmt.Printf("Warning: go mod tidy failed: %v\n", err)
+		fmt.Printf("  -> 若因无法解析 github.com/LandcLi/landc-go/frame，请检查：\n")
+		fmt.Printf("     1) GOPROXY 是否可访问（go env GOPROXY）\n")
+		fmt.Printf("     2) 内网代理是否已同步 landc-go 各模块；可临时用 GOPROXY=direct 重试\n")
+		fmt.Printf("     3) 运行 `landc doctor --check-network` 诊断\n")
 	}
 
 	fmt.Printf("\n✓ Project initialized successfully!\n")
@@ -209,11 +223,38 @@ var Main = cmd.NewCommand("main", "start HTTP server", func(ctx context.Context,
 func createGoMod(projectPath, moduleName string) error {
 	content := fmt.Sprintf(`module %s
 
-go 1.24.0
+go %s
 
 require github.com/LandcLi/landc-go/frame v0.0.0
-`, moduleName)
+`, moduleName, goVersion())
 	return os.WriteFile(filepath.Join(projectPath, "go.mod"), []byte(content), 0o600)
+}
+
+// goVersion 返回本地工具链的主次版本（go1.26.5 → "1.26"），供生成的 go.mod 使用。
+func goVersion() string {
+	v := runtime.Version() // "go1.26.5"
+	v = strings.TrimPrefix(v, "go")
+	if idx := strings.Index(v, "."); idx >= 0 {
+		if idx2 := strings.Index(v[idx+1:], "."); idx2 >= 0 {
+			v = v[:idx+1+idx2]
+		}
+	}
+	return v
+}
+
+// checkGoVersionWarn 当本地 Go 低于 1.26 时提示（frame 模块要求）。
+func checkGoVersionWarn() {
+	parts := strings.SplitN(strings.TrimPrefix(runtime.Version(), "go"), ".", 3)
+	if len(parts) < 2 {
+		return
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return
+	}
+	if minor < 26 {
+		fmt.Printf("Warning: local Go is %s, but frame requires Go 1.26+; `go mod tidy` 会自动提升 go.mod 版本\n", goVersion())
+	}
 }
 
 // landcGoDir returns the absolute path to the directory containing the CLI's go.mod.
