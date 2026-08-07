@@ -1,0 +1,6 @@
+# 运行时产物（SQLite 数据文件）
+demo.db
+*.db
+
+# 日志
+*.log

@@ -1,0 +1,31 @@
+server:
+  addr: 0.0.0.0
+  port: 8080
+  use_default_routes: true
+  health_check:
+    enabled: true
+    liveness_path: /health
+    readiness_path: /ready
+    database_check: false
+    redis_check: false
+  request_timeout: 10
+
+# 使用 SQLite，零外部依赖即可跑通；换成 MySQL/Postgres 只需改 driver + dsn
+database:
+  driver: sqlite
+  dsn: "./demo.db"
+
+# 不配置 Redis 时缓存自动回退本地内存（弱依赖模式）
+redis:
+  addr: ""
+
+jwt:
+  # 演示密钥（≥32 字符）；生产请从环境变量注入
+  secret: "landc-demo-secret-change-me-in-production-0123456789"
+  expire_time: 2h
+  issuer: landc-demo
+
+log:
+  level: info
+  format: json
+  output: stdout
