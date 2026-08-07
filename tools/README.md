@@ -20,6 +20,9 @@ go get github.com/LandcLi/landc-go/tools
 | `email` | 邮箱格式验证与解析 |
 | `geo` | IP 地理位置查询（基于 GeoIP2） |
 | `mail` | SMTP/IMAP/POP3 邮件收发 |
+| `security` | AES-GCM 加解密（`enc:` 前缀 + 明文兼容降级，密钥调用方传入） |
+| `ratelimit` | 缓存限流（间隔 / 计数，Cache 接口原子 `Incr` 防并发竞态） |
+| `verifycode` | 验证码（生成 + 限流 + TTL 存储 + 一次性校验） |
 | `tag` | 结构体 Tag 验证器（required/email/phone/min/max/pattern/enum/...） |
 
 ## 使用示例
@@ -44,4 +47,20 @@ generate.SnowflakeID()          // 1234567890123456
 c := cache.NewGlobalCache()
 c.SetWithExpiration("key", "value", 5*time.Minute)
 val, ok := c.Get("key")
+
+// AES-GCM 加解密（v0.7.0）
+cipher, _ := security.NewCipherFromString("0123456789abcdef0123456789abcdef")
+enc, _ := cipher.Encrypt([]byte("sensitive"))
+plain, _ := cipher.Decrypt(enc) // 兼容无 enc: 前缀的历史明文
+
+// 缓存限流（v0.7.0，Cache 接口原子自增）
+rlCache := ratelimit.NewIntervalLimiter(c)
+if !rlCache.Allow("sms:send:"+phone, 60*time.Second) { /* 间隔未到 */ }
+cl := ratelimit.NewCountLimiter(c)
+if !cl.Allow("login:daily:"+ip, 10, 24*time.Hour) { /* 超每日上限 */ }
+
+// 验证码（v0.7.0）
+vc := verifycode.NewManager(c)
+code, _ := vc.Generate("sms:13800000000")
+if !vc.Verify("sms:13800000000", input) { /* 校验失败 */ }
 ```
