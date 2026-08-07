@@ -5,7 +5,7 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.8.0] - 2026-08-08
 
 ### 新增
 
@@ -16,6 +16,16 @@
 - **`landc init` 增强**：生成的 go.mod 使用本地工具链版本（不再写死 go 1.24）；`go mod tidy` 失败时输出 GOPROXY/网络诊断建议；本地 Go 低于 1.26 时告警
 - **代码生成自动格式化**：`landc gen` 生成的 Go 代码自动 `gofmt`；`landc gen all --check` 生成后执行 `go build ./...` 校验四层可编译
 - **CLI 定位调整**：landc 命令不再自动初始化框架配置/DB/缓存（`app.Bootstrap = nil`），避免 CLI 无谓连接数据库
+- **examples/demo**：完整可运行示例（分层架构 / DB / 缓存 / JWT / 方法级中间件，SQLite + 本地缓存零外部依赖）
+
+### 修复
+
+- **`landc init` 选项失效**：`--path/--module/--force/--no-git/--no-readme` 从未注册到命令框架，`--path` 实际被当作无值选项、路径变成位置参数（已在当前目录误建项目）；`gen` 子命令 `--module`、`doctor --check-network` 同类问题一并修复
+- **frame 依赖版本落后**：`frame/go.mod` require `tools v0.5.0`，但 frame 已使用 v0.7.0 新增的 `tools/security`、`tools/ratelimit`、`tools/verifycode` 包（go.work 本地模块掩盖），发布后下游将编译失败——已升级为 `tools v0.7.0` 并独立构建验证
+
+### 文档
+
+- README 重写为 8 步上手指南（路由 / 参数绑定 / 统一响应 / 配置 / 数据库 / 缓存 / JWT / 工程化），代码经编译验证
 
 ## [0.7.0] - 2026-08-07
 

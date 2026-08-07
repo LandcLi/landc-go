@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/LandcLi/landc-go/api v0.5.0
 	github.com/LandcLi/landc-go/log v0.5.0
-	github.com/LandcLi/landc-go/tools v0.5.0
+	github.com/LandcLi/landc-go/tools v0.7.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
