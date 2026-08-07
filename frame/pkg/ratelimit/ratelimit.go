@@ -23,7 +23,7 @@ func AllowInterval(ctx context.Context, key string, interval time.Duration) bool
 	if c == nil {
 		return true
 	}
-	return toolsrl.NewIntervalLimiter(cacheAdapter{c: c}).Allow(key, interval)
+	return toolsrl.NewIntervalLimiter(framecache.AsToolsCache(c)).Allow(key, interval)
 }
 
 // AllowCount 计数限流：同一 key 在 window 内最多放行 limit 次。
@@ -34,30 +34,5 @@ func AllowCount(ctx context.Context, key string, limit int64, window time.Durati
 	if c == nil {
 		return true
 	}
-	return toolsrl.NewCountLimiter(cacheAdapter{c: c}).Allow(key, limit, window)
-}
-
-// cacheAdapter 把 frame/pkg/cache.Cache（方法带 ctx）适配为 tools/ratelimit.Cache（无 ctx）。
-type cacheAdapter struct {
-	c framecache.Cache
-}
-
-func (a cacheAdapter) Get(key string) (string, error) {
-	return a.c.Get(context.Background(), key)
-}
-
-func (a cacheAdapter) Set(key, value string, ttl time.Duration) error {
-	return a.c.Set(context.Background(), key, value, ttl)
-}
-
-func (a cacheAdapter) Delete(key string) error {
-	return a.c.Delete(context.Background(), key)
-}
-
-func (a cacheAdapter) Exists(key string) (bool, error) {
-	return a.c.Exists(context.Background(), key)
-}
-
-func (a cacheAdapter) Incr(key string, ttl time.Duration) (int64, error) {
-	return a.c.Incr(context.Background(), key, ttl)
+	return toolsrl.NewCountLimiter(framecache.AsToolsCache(c)).Allow(key, limit, window)
 }
