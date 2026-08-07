@@ -112,7 +112,7 @@ func newGenLibCommand() *cmd.Command {
 }
 
 func newGenAllCommand() *cmd.Command {
-	cmd := cmd.NewCommand("all", "Generate all layers (api + service + dao + model)", func(ctx context.Context, parser *cmd.Parser) error {
+	command := cmd.NewCommand("all", "Generate all layers (api + service + dao + model)", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetArg(0)
 		if name == "" {
 			return fmt.Errorf("model name is required, usage: landc gen all <name>")
@@ -139,14 +139,13 @@ func newGenAllCommand() *cmd.Command {
 			fmt.Println("  -> running `go build ./...` to verify generated code...")
 			if err := runGoBuildCheck(); err != nil {
 				return fmt.Errorf("generated code failed to build (see output above)")
-
 			}
 			fmt.Println("  -> build check passed")
 		}
 		return nil
 	})
-	cmd.AddOption("check", false)
-	return cmd
+	command.AddOption("check", false)
+	return command
 }
 
 // runGoBuildCheck 在当前目录执行 go build ./...，用于校验生成代码可编译。
