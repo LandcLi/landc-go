@@ -197,35 +197,30 @@ type GetUserReq struct {
 | 方法返回 | 框架行为 |
 |---------|---------|
 | `(data, nil)` | HTTP 200：`{"code":10000,"message":"success","data":...}` |
-| `(nil, err)` | HTTP 500：`{"code":50000,"message":"internal server error"}`（**不泄露内部错误细节**，完整错误打印到服务端日志） |
+| `(nil, *core.Error)` | **业务错误码透传**：响应携带 `code` + `message`，HTTP 状态码按错误码映射（见下表） |
+| `(nil, 普通 error)` | HTTP 500：`{"code":50000,"message":"internal server error"}`（不泄露内部错误细节，完整错误打印到服务端日志） |
+
+**错误码 → HTTP 状态映射**：40100→401、40300→403、40400→404、40500→405、40900→409、42200→422、50100→501、50200→502、50300→503、50400→504；其余 4xxxx→400、5xxxx→500、自定义 60000-99999→400。
 
 ```go
-// 方式一：直接返回 error —— 业务失败统一映射为 500，内部细节不外泄
+// 返回 *core.Error：错误码与 message 直接透传（支持 %w 包装链）
 func (c *UserController) Delete(req *DeleteUserReq) (*DeleteUserRes, error) {
     if err := userService.Delete(req.ID); err != nil {
-        return nil, err
+        return nil, core.NewError(core.ErrorCodeNotFound, "user not found") // HTTP 404
     }
     return &DeleteUserRes{OK: true}, nil
 }
 
-// 方式二：需要精确的错误码/HTTP 状态 —— 方法首参注入 *gin.Context，
-// 使用 response 包写出，并 Abort 阻止框架二次写响应
-func (c *UserController) Create(g *gin.Context, req *CreateUserReq) (*CreateUserRes, error) {
-    if req.Username == "" {
-        response.BadRequest(g, "username is required") // HTTP 200 + code 40000
-        g.Abort()
-        return nil, nil
+// 返回普通 error：业务失败统一映射为 500，内部细节不外泄
+func (c *UserController) Update(req *UpdateUserReq) (*UpdateUserRes, error) {
+    if err := userService.Update(req); err != nil {
+        return nil, err // HTTP 500 + code 50000
     }
-    if err := userService.Create(req); err != nil {
-        response.InternalServerError(g, "create failed") // code 50000
-        g.Abort()
-        return nil, nil
-    }
-    return &CreateUserRes{ID: 1}, nil
+    return &UpdateUserRes{OK: true}, nil
 }
 ```
 
-`response` 包提供 `Success / BadRequest / Unauthorized / Forbidden / NotFound / InternalServerError / Error(code, msg)` 等，错误码体系与 `github.com/LandcLi/landc-go/api/core` 完全一致（成功 10000，客户端错误 4xxxx，服务端错误 5xxxx，自定义错误 60000-99999）。
+错误码体系与 `github.com/LandcLi/landc-go/api/core` 完全一致（成功 10000，客户端错误 4xxxx，服务端错误 5xxxx，自定义错误 60000-99999，可用 `core.NewCustomError` 创建）。如需在方法内主动写响应（而非走返回值），仍可注入 `*gin.Context` 使用 `response` 包（`BadRequest / Unauthorized / Forbidden / NotFound / InternalServerError` 等）。
 
 ### 第 5 步：配置加载
 

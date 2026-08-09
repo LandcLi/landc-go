@@ -2,10 +2,12 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
 
+	"github.com/LandcLi/landc-go/api/core"
 	"github.com/gin-gonic/gin"
 )
 
@@ -75,8 +77,19 @@ func createHandler(instanceValue reflect.Value, method reflect.Method) gin.Handl
 			lastResult := results[len(results)-1]
 			if lastResult.Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 				if err, _ := lastResult.Interface().(error); err != nil {
-					// 记录完整错误日志，但不向客户端透传内部错误细节（防信息泄露）
+					// 记录完整错误日志（含包装链与 cause），不向客户端透传内部细节
 					fmt.Printf("handler %s.%s returned error: %v\n", instanceValue.Type(), method.Name, err)
+					// 业务错误码透传：*core.Error（含 %w 包装链）→ 响应携带 code + message，
+					// HTTP 状态码按错误码映射；Details/Cause 不进响应体（防泄露，日志已记录）
+					var apiErr *core.Error
+					if errors.As(err, &apiErr) {
+						c.JSON(httpStatusFromCode(apiErr.Code), gin.H{
+							"code":    apiErr.Code,
+							"message": apiErr.Message,
+						})
+						return
+					}
+					// 普通 error：统一 500，不透传内部错误细节
 					c.JSON(500, gin.H{
 						"code":    50000,
 						"message": "internal server error",
