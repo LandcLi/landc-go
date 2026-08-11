@@ -349,12 +349,35 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req, resp
 		return fmt.Errorf("remote service returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	if respPtr != nil {
-		if err := json.Unmarshal(body, respPtr); err != nil {
-			return fmt.Errorf("unmarshal response failed: %w", err)
-		}
-	}
+	return unmarshalResponse(body, respPtr)
+}
 
+// unmarshalResponse 解析远端响应体到目标结构。
+//
+// landc-go 统一响应格式为 {"code":10000,"message":"success","data":...}，
+// 业务数据在 data 字段中，需解包后再反序列化；同时兼容非包装的裸响应
+// （裸对象/数组直接反序列化整个 body）。respPtr 为 nil 时跳过。
+func unmarshalResponse(body []byte, respPtr interface{}) error {
+	if respPtr == nil {
+		return nil
+	}
+	var wrapper struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return fmt.Errorf("unmarshal response failed: %w", err)
+	}
+	if wrapper.Data != nil && string(wrapper.Data) != "null" {
+		// 包装响应：解包 data
+		if err := json.Unmarshal(wrapper.Data, respPtr); err != nil {
+			return fmt.Errorf("unmarshal response data failed: %w", err)
+		}
+		return nil
+	}
+	// 非包装响应（裸对象/数组）：直接反序列化整个响应体，保持兼容
+	if err := json.Unmarshal(body, respPtr); err != nil {
+		return fmt.Errorf("unmarshal response failed: %w", err)
+	}
 	return nil
 }
 

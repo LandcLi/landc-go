@@ -5,6 +5,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.2] - 2026-08-11
+
+### 修复
+
+- **`di.Call` 响应 `data` 未解包**：远端返回 landc-go 统一包装响应
+  `{"code":10000,"message":"success","data":{...}}` 时，业务数据被整体反序列化到目标结构
+  导致字段全部为零值且无报错（`json.Unmarshal` 静默忽略未知字段）。现在优先解包 `data`
+  字段，同时兼容非包装的裸对象/数组响应，并新增解包 / 裸响应 / `data:null` 三种形态测试
+- **JWT 全局配置无初始化入口**：
+  - `web.NewServer` 直接启动的链路此前不会初始化 JWT（仅 bootstrap/cmd 链路有），
+    导致 `middleware.Auth`、`auth.GenerateToken` 报 "JWT config not initialized"。
+    现在 `web.NewServer` 启动时自动从全局配置的 `jwt` 段初始化（幂等 no-op），
+    两种启动链路行为一致
+  - 新增 `auth.InitFromConfig(cfg)`（导出）：`bootstrap` 复用同一逻辑，
+    消除重复实现；触发条件放宽——配置任一密钥字段（`secret`/`private_key_path`/
+    `public_key_path`/`signing_method`）即生效，`expire_time` 不再必填
+    （此前仅配 `secret` 未配 `expire_time` 会静默不初始化）；`expire_time`
+    格式非法时打印警告而非静默跳过
+  - `GenerateTokenWithOpts` / `ParseToken` 的 "JWT config not initialized" 报错
+    补充初始化指引（`auth.InitJWT` / bootstrap / web.NewServer 自动初始化）
+
 ## [0.8.1] - 2026-08-09
 
 ### 修复

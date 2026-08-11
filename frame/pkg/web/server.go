@@ -11,6 +11,7 @@ import (
 
 	apihealth "github.com/LandcLi/landc-go/api/health"
 	ginmw "github.com/LandcLi/landc-go/api/middleware/gin"
+	"github.com/LandcLi/landc-go/frame/pkg/auth"
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/health"
 	"github.com/LandcLi/landc-go/log/facade"
@@ -86,6 +87,11 @@ func NewServer(cfg *ServerConfig) *Server {
 		config: cfg,
 		routes: &routeRegistry{},
 	}
+
+	// 自动初始化 JWT（从全局配置的 jwt 段；未配置时为 no-op）。
+	// 保证 web.NewServer 直接启动链路与 bootstrap 链路行为一致：
+	// controller 返回 *core.Error / middleware.Auth 开箱即用。
+	auth.InitFromConfig(config.GetConfig())
 
 	// 自动注册框架级中间件和默认路由（基于全局配置）
 	s.registerBuiltin()

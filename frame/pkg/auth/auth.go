@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -81,6 +82,44 @@ func GetJWTConfig() *JWTConfig {
 	jwtMu.RLock()
 	defer jwtMu.RUnlock()
 	return globalJWTConfig
+}
+
+// InitFromConfig 从框架全局配置的 jwt 段自动初始化 JWT（幂等）。
+//
+// 触发条件：配置了任一密钥相关字段（secret / private_key_path / public_key_path /
+// signing_method）；仅配了 issuer 等非密钥字段时视为未配置，跳过（no-op）。
+// expire_time 可缺省：留空时签发需显式传入 GenerateTokenOption.ExpireTime，
+// 否则 GenerateTokenWithOpts 会返回明确错误（避免签发立即过期的无效 token）。
+// expire_time 格式非法（如 "30" 而非 "30m"）时打印警告并忽略该字段。
+//
+// 供 bootstrap 与 web.NewServer 启动链路统一调用，保证两种启动方式行为一致。
+func InitFromConfig(cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	jwtCfg := cfg.JWT
+	if jwtCfg.Secret == "" && jwtCfg.PrivateKeyPath == "" && jwtCfg.PublicKeyPath == "" && jwtCfg.SigningMethod == "" {
+		return
+	}
+
+	expire := time.Duration(0)
+	if jwtCfg.ExpireTime != "" {
+		d, err := time.ParseDuration(jwtCfg.ExpireTime)
+		if err != nil {
+			fmt.Printf("warning: invalid jwt.expire_time %q (want duration like \"2h\" or \"30m\"): %v; using zero (must pass GenerateTokenOption.ExpireTime)\n", jwtCfg.ExpireTime, err)
+		} else {
+			expire = d
+		}
+	}
+
+	InitJWT(&JWTConfig{
+		Secret:         jwtCfg.Secret,
+		ExpireTime:     expire,
+		Issuer:         jwtCfg.Issuer,
+		SigningMethod:  jwtCfg.SigningMethod,
+		PrivateKeyPath: jwtCfg.PrivateKeyPath,
+		PublicKeyPath:  jwtCfg.PublicKeyPath,
+	})
 }
 
 // minSecretLength JWT 密钥最小长度（防止弱密钥被暴力破解）
@@ -201,7 +240,7 @@ func GenerateToken(userID uint, username string, role ...string) (string, error)
 func GenerateTokenWithOpts(userID uint, username string, opt GenerateTokenOption) (string, error) {
 	cfg := GetJWTConfig()
 	if cfg == nil {
-		return "", errors.New("JWT config not initialized")
+		return "", errors.New("JWT config not initialized: call auth.InitJWT() (or use landc bootstrap / web.NewServer which auto-init from config.yaml jwt section)")
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -248,7 +287,7 @@ func GenerateTokenWithOpts(userID uint, username string, opt GenerateTokenOption
 func ParseToken(tokenString string) (*Claims, error) {
 	cfg := GetJWTConfig()
 	if cfg == nil {
-		return nil, errors.New("JWT config not initialized")
+		return nil, errors.New("JWT config not initialized: call auth.InitJWT() (or use landc bootstrap / web.NewServer which auto-init from config.yaml jwt section)")
 	}
 
 	if err := validateConfig(cfg); err != nil {

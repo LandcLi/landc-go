@@ -172,26 +172,11 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 	return nil
 }
 
-// applyJWTFromConfig 从全局配置同步 JWT 配置到 auth 包
-// 启动初始化与配置热更新时复用，保证两者行为一致
+// applyJWTFromConfig 从全局配置同步 JWT 配置到 auth 包。
+// 统一委托 auth.InitFromConfig（含触发条件放宽与 expire_time 缺省/格式校验），
+// 启动初始化与配置热更新时复用，保证两者行为一致。
 func applyJWTFromConfig(cfg *config.Config) {
-	if cfg == nil {
-		return
-	}
-	jwtCfg := cfg.JWT
-	if jwtCfg.ExpireTime != "" && (jwtCfg.Secret != "" || jwtCfg.PrivateKeyPath != "" || jwtCfg.SigningMethod != "") {
-		expire, err := time.ParseDuration(jwtCfg.ExpireTime)
-		if err == nil {
-			auth.InitJWT(&auth.JWTConfig{
-				Secret:         jwtCfg.Secret,
-				ExpireTime:     expire,
-				Issuer:         jwtCfg.Issuer,
-				SigningMethod:  jwtCfg.SigningMethod,
-				PrivateKeyPath: jwtCfg.PrivateKeyPath,
-				PublicKeyPath:  jwtCfg.PublicKeyPath,
-			})
-		}
-	}
+	auth.InitFromConfig(cfg)
 }
 
 // WatchJWTConfig 监听配置文件变化并热更新 JWT 配置。
