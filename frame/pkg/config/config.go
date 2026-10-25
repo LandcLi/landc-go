@@ -156,12 +156,17 @@ func LoadJSONConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var config Config
-	if err := json.Unmarshal(data, &config); err != nil {
+	// 先施加默认值再反序列化。反序列化到零值结构体会让配置文件中省略的
+	// 字段退化为 Go 零值（bool→false、int→0），从而把「默认开启」的能力
+	// 静默关掉——最典型的是 server.health_check.enabled 与
+	// server.use_default_routes：配置文件里没写这两项，健康检查就再也不会
+	// 注册，k8s 探针与 Docker HEALTHCHECK 全部失效。
+	cfg := DefaultConfig()
+	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON config: %w", err)
 	}
 
-	return &config, nil
+	return cfg, nil
 }
 
 func LoadYAMLConfig(path string) (*Config, error) {
@@ -170,12 +175,15 @@ func LoadYAMLConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	// 先施加默认值再反序列化，理由同 LoadJSONConfig。
+	// Config.UnmarshalYAML 使用 value.Decode((*Alias)(c)) 就地填充，
+	// 不会清空结构体，因此未在 YAML 中出现的字段会保留默认值。
+	cfg := DefaultConfig()
+	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML config: %w", err)
 	}
 
-	return &config, nil
+	return cfg, nil
 }
 
 func DefaultConfig() *Config {

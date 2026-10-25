@@ -5,6 +5,36 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.5] - 2026-10-25
+
+### 修复
+
+- **配置文件省略的字段会退化为 Go 零值，静默关闭默认能力**（严重）。
+  `LoadYAMLConfig` / `LoadJSONConfig` 此前直接反序列化到零值 `Config`，
+  导致配置文件里没写到的字段全部变成 `false` / `0`。破坏性最大的两项：
+
+  | 字段 | 应有默认 | 实际得到 | 后果 |
+  | --- | --- | --- | --- |
+  | `server.use_default_routes` | `true` | `false` | 框架默认路由不注册 |
+  | `server.health_check.enabled` | `true` | `false` | 健康检查端点消失 |
+
+  表现为 `/health`、`/ready` 返回 401 或 404，k8s 探针永远失败、Pod 反复重启、
+  Docker `HEALTHCHECK` 恒为 unhealthy，而业务日志里没有任何异常线索。
+  现在两个加载函数都先施加 `DefaultConfig()` 再反序列化；配置文件中显式写的值
+  仍然优先（含显式 `false`）。
+- **JWT 鉴权中间件拦截健康检查端点**。`middleware.Auth()` 无差别要求
+  `Authorization` 头，而编排系统的探针不会携带 Token。健康检查路径未注册时，
+  请求会落到 NoRoute 并被鉴权拦下，运维看到的是 401 而不是 404，误导排查方向。
+
+### 新增
+
+- **`middleware.AuthWithSkip(extra ...string)`**：在默认跳过列表之外追加免鉴权路径，
+  用于 webhook、公开回调等场景。
+- `middleware.Auth()` 现在默认跳过 `/health`、`/ready`、`/metrics`、
+  `/healthz`、`/livez`、`/readyz`。
+- 回归测试：`pkg/config/defaults_apply_test.go`（默认值补全 + 显式关闭优先）、
+  `pkg/middleware/auth_skip_test.go`（探针免鉴权 + 业务路径仍需 Token）。
+
 ## [0.8.4] - 2026-10-25
 
 ### 新增

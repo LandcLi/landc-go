@@ -149,9 +149,42 @@ func Trace() gin.HandlerFunc {
 	}
 }
 
-// Auth JWT 认证中间件（使用 landc-go/api 错误码）
+// defaultAuthSkipPaths 鉴权默认跳过的路径。
+//
+// 健康检查与指标端点是给编排系统（k8s / ECS / 负载均衡）调用的，
+// 探针不会也不应该携带 Bearer Token。对它们做鉴权会让探活永远失败，
+// 表现为 Pod 反复重启、容器处于 unhealthy、发布卡在 rollout。
+var defaultAuthSkipPaths = []string{
+	"/health", "/ready", "/metrics",
+	"/healthz", "/livez", "/readyz",
+}
+
+// Auth JWT 认证中间件（使用 landc-go/api 错误码）。
+// 默认跳过健康检查与指标端点，见 defaultAuthSkipPaths。
 func Auth() gin.HandlerFunc {
+	return AuthWithSkip()
+}
+
+// AuthWithSkip JWT 认证中间件，在默认跳过列表之外再跳过 extra 中的路径。
+// 精确匹配请求路径；空字符串会被忽略。
+func AuthWithSkip(extra ...string) gin.HandlerFunc {
+	skip := make(map[string]struct{}, len(defaultAuthSkipPaths)+len(extra))
+	for _, p := range defaultAuthSkipPaths {
+		skip[p] = struct{}{}
+	}
+	for _, p := range extra {
+		if p != "" {
+			skip[p] = struct{}{}
+		}
+	}
+
 	return func(c *gin.Context) {
+		// 探针端点免鉴权放行
+		if _, ok := skip[c.Request.URL.Path]; ok {
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			response.Unauthorized(c, "authorization header is required")
