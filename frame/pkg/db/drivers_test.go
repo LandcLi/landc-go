@@ -109,3 +109,40 @@ func TestSQLiteDialectorWorksWithoutCGO(t *testing.T) {
 		t.Logf("warning: -wal file not found (%v), journal_mode may not be WAL", err)
 	}
 }
+
+// TestAutoMigrateIfEnabled 验证开关语义：未开启时为 no-op，开启后真的建表。
+func TestAutoMigrateIfEnabled(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "auto.db")
+	if err := config.InitGlobalConfigWithConfig(&config.Config{
+		Database: config.DatabaseConfig{Driver: "sqlite", DSN: dbPath},
+	}); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	defer func() { _ = Close() }()
+
+	if err := InitGlobalDBWithDefault(); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+
+	type autoProbe struct {
+		ID   uint
+		Name string
+	}
+
+	// 未开启：不应建表
+	if err := AutoMigrateIfEnabled(&autoProbe{}); err != nil {
+		t.Fatalf("AutoMigrateIfEnabled (disabled) should be no-op: %v", err)
+	}
+	if GetDB().Migrator().HasTable(&autoProbe{}) {
+		t.Error("table should NOT be created when auto_migrate is disabled")
+	}
+
+	// 开启：建表成功
+	config.GetConfig().Database.AutoMigrate = true
+	if err := AutoMigrateIfEnabled(&autoProbe{}); err != nil {
+		t.Fatalf("AutoMigrateIfEnabled (enabled) failed: %v", err)
+	}
+	if !GetDB().Migrator().HasTable(&autoProbe{}) {
+		t.Error("table should be created when auto_migrate is enabled")
+	}
+}

@@ -60,6 +60,9 @@ type (
 		MaxOpenConns    int    `json:"max_open_conns" yaml:"max_open_conns"`
 		MaxIdleConns    int    `json:"max_idle_conns" yaml:"max_idle_conns"`
 		ConnMaxLifetime int    `json:"conn_max_lifetime" yaml:"conn_max_lifetime"`
+		// AutoMigrate 为 true 时，业务系统在启动阶段调用 db.AutoMigrateIfEnabled
+		// 自动建表/补列。生产环境通常由 sqls/*.sql 或版本化迁移接管，建议关闭。
+		AutoMigrate bool `json:"auto_migrate" yaml:"auto_migrate"`
 	}
 
 	RedisConfig struct {

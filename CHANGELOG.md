@@ -5,6 +5,23 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.4] - 2026-10-25
+
+### 新增
+
+- **`database.auto_migrate` 配置项 + `db.AutoMigrateIfEnabled(models...)`**：业务系统用一行
+  代码完成「开发/测试环境自动建表」，生产环境仍由 `sqls/*.sql` 或版本化迁移掌控，
+  两种模式共存且无需改代码。未开启开关时该调用为 no-op。
+- **`db.ErrNoDatabaseConfig`（导出哨兵错误）**：用于区分「未配置数据库」（可跳过）
+  与「配置了但连接失败」（必须失败）。
+
+### 变更（可能影响既有部署）
+
+- **数据库初始化失败不再被静默跳过**：`bootstrap` 原先在 `db.InitGlobalDBWithDefault()`
+  返回任何错误时都 `return nil`，导致服务带着 nil DB 启动、每个请求 panic。现在：
+  未配置 `database.driver` 时视为「无需数据库」正常跳过；一旦配置了 driver 却连接失败，
+  启动阶段直接返回错误并退出。
+
 ## [0.8.3] - 2026-10-25
 
 ### 新增

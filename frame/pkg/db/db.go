@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -42,11 +43,18 @@ func InitGlobalDBWithConfig(cfg *config.DatabaseConfig) error {
 	return nil
 }
 
+// ErrNoDatabaseConfig 表示配置中未指定数据库驱动，属于「不需要数据库」的正常场景，
+// 与「配置了数据库但连接失败」必须区分开：前者可跳过，后者应快速失败。
+var ErrNoDatabaseConfig = errors.New("database driver not configured")
+
 // InitGlobalDBWithDefault 使用默认配置初始化全局数据库
 func InitGlobalDBWithDefault() error {
 	cfg := config.GetConfig()
 	if cfg == nil {
 		return fmt.Errorf("config not initialized")
+	}
+	if strings.TrimSpace(cfg.Database.Driver) == "" {
+		return ErrNoDatabaseConfig
 	}
 	return InitGlobalDBWithConfig(&cfg.Database)
 }
@@ -82,6 +90,26 @@ func AutoMigrate(models ...interface{}) error {
 		return fmt.Errorf("database not initialized")
 	}
 	return db.AutoMigrate(models...)
+}
+
+// AutoMigrateIfEnabled 在配置开启 database.auto_migrate 时执行 AutoMigrate，
+// 否则直接返回 nil（不视为错误）。
+//
+// 用途：让业务系统用一行代码完成「开发/测试环境自动建表」，生产环境仍由
+// sqls/*.sql 或版本化迁移掌控，两种模式共存且无需改代码：
+//
+//	if err := db.AutoMigrateIfEnabled(&model.User{}, &model.LoginHistory{}); err != nil {
+//	    return err
+//	}
+func AutoMigrateIfEnabled(models ...interface{}) error {
+	cfg := config.GetConfig()
+	if cfg == nil || !cfg.Database.AutoMigrate {
+		return nil
+	}
+	if len(models) == 0 {
+		return nil
+	}
+	return AutoMigrate(models...)
 }
 
 func openDB(cfg *config.DatabaseConfig) (*gorm.DB, error) {

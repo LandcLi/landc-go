@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -154,10 +155,13 @@ func (b *Bootstrap) initInternalComponents(ctx context.Context) error {
 		}
 	}
 
-	// Try DB init. If config has no DB config or DB unavailable, skip silently.
-	// This allows CLI tools and non-DB services to use Bootstrap without DB.
+	// 初始化数据库：
+	//   - 未配置 driver（ErrNoDatabaseConfig）→ 视为「无需数据库」，跳过（CLI/纯 HTTP 服务）；
+	//   - 配置了但连接失败 → 快速失败，避免服务带着 nil DB 启动后在每个请求上 panic。
 	if err := db.InitGlobalDBWithDefault(); err != nil {
-		return nil
+		if !errors.Is(err, db.ErrNoDatabaseConfig) {
+			return fmt.Errorf("failed to init database: %w", err)
+		}
 	}
 
 	// Init cache. Redis 可用时用 Redis，不可用时 fallback 到本地内存缓存。
