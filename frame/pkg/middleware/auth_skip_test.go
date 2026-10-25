@@ -64,7 +64,7 @@ func TestAuthWithSkipExtra(t *testing.T) {
 		want   int
 	}{
 		{"/api/public/webhook", http.MethodPost, http.StatusOK},
-		{"/health", http.MethodGet, http.StatusOK},        // 默认跳过列表仍然生效
+		{"/health", http.MethodGet, http.StatusOK}, // 默认跳过列表仍然生效
 		{"/api/private", http.MethodGet, http.StatusUnauthorized},
 	}
 
