@@ -9,19 +9,32 @@ import (
 	"github.com/LandcLi/landc-go/frame/pkg/cmd"
 )
 
+// newTestCommand 构造不触发 bootstrap 的命令。
+//
+// Command.Run 默认会初始化配置与数据库，但本文件的测试只验证命令解析与
+// 调度逻辑，不应依赖 MySQL 等外部服务。Command.Bootstrap 为 nil 时 Run
+// 会跳过初始化，因此测试统一走这个构造函数。此前直接用 cmd.NewCommand，
+// bootstrap 里的数据库连接失败被静默吞掉，测试才「看起来通过」；
+// 该行为修正后（见 frame v0.8.3）这些测试在无数据库环境下会直接报错。
+func newTestCommand(name, brief string, f cmd.Function) *cmd.Command {
+	c := cmd.NewCommand(name, brief, f)
+	c.Bootstrap = nil
+	return c
+}
+
 func TestCommand(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
 	defer func() { os.Args = originalArgs }()
 
 	// 测试基本命令
-	testCmd := cmd.NewCommand("test", "Test command", func(ctx context.Context, parser *cmd.Parser) error {
+	testCmd := newTestCommand("test", "Test command", func(ctx context.Context, parser *cmd.Parser) error {
 		fmt.Println("Test command executed")
 		return nil
 	})
 
 	// 测试子命令
-	subCmd := cmd.NewCommand("sub", "Sub command", func(ctx context.Context, parser *cmd.Parser) error {
+	subCmd := newTestCommand("sub", "Sub command", func(ctx context.Context, parser *cmd.Parser) error {
 		fmt.Println("Sub command executed")
 		return nil
 	})
@@ -101,7 +114,7 @@ func TestCommandWithOptions(t *testing.T) {
 	defer func() { os.Args = originalArgs }()
 
 	// 测试带选项的命令
-	testCmd := cmd.NewCommand("test", "Test command with options", func(ctx context.Context, parser *cmd.Parser) error {
+	testCmd := newTestCommand("test", "Test command with options", func(ctx context.Context, parser *cmd.Parser) error {
 		option := parser.GetOpt("option")
 		fmt.Printf("Option value: %s\n", option)
 		return nil
@@ -125,7 +138,7 @@ func TestCommandHelp(t *testing.T) {
 	defer func() { os.Args = originalArgs }()
 
 	// 测试帮助信息
-	testCmd := cmd.NewCommand("test", "Test command", nil)
+	testCmd := newTestCommand("test", "Test command", nil)
 	testCmd.Description = "This is a test command"
 	testCmd.Examples = "  test --option=value"
 	testCmd.Additional = "Additional information about the test command"
@@ -280,7 +293,7 @@ func TestCommandWithOptionAliases(t *testing.T) {
 	defer func() { os.Args = originalArgs }()
 
 	// 测试命令带选项别名
-	testCmd := cmd.NewCommand("test", "Test command with option aliases", func(ctx context.Context, parser *cmd.Parser) error {
+	testCmd := newTestCommand("test", "Test command with option aliases", func(ctx context.Context, parser *cmd.Parser) error {
 		name := parser.GetOpt("n")
 		nameAlias := parser.GetOpt("name")
 		fmt.Printf("Name: %s, Name (alias): %s\n", name, nameAlias)

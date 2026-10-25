@@ -6,6 +6,10 @@
 //   - 生成：受发送间隔（默认 60s）与每日上限（默认 10 次）约束
 //   - 存储：TTL 默认 5 分钟
 //   - 校验：一次性（成功后立即删除），防重放
+//
+// 限流降级策略：底层 Cache 读写失败时限流器放行（可用性优先），不阻断业务。
+// 因此对「防短信轰炸」这类有直接资损风险的场景，不能只依赖本包，
+// 还需在网关或运营商侧做一层独立的频控。
 package verifycode
 
 import (
@@ -58,19 +62,19 @@ func WithTTL(d time.Duration) Option {
 	}
 }
 
-// WithSendInterval 设置同一 key 的发送间隔（默认 60 秒）。
+// WithSendInterval 设置同一 key 的发送间隔（默认 60 秒）。传 0 表示关闭间隔限制。
 func WithSendInterval(d time.Duration) Option {
 	return func(m *Manager) {
-		if d > 0 {
+		if d >= 0 {
 			m.sendInterval = d
 		}
 	}
 }
 
-// WithDailyLimit 设置同一 key 的每日发送上限（默认 10）。
+// WithDailyLimit 设置同一 key 的每日发送上限（默认 10）。传 0 表示关闭上限限制。
 func WithDailyLimit(n int64) Option {
 	return func(m *Manager) {
-		if n > 0 {
+		if n >= 0 {
 			m.dailyLimit = n
 		}
 	}
@@ -96,10 +100,11 @@ func NewManager(c ratelimit.Cache, opts ...Option) *Manager {
 // Generate 生成验证码并存储，返回验证码值（供业务侧发送短信/邮件）。
 // 受发送间隔与每日上限约束；超限返回 ErrIntervalLimited / ErrDailyLimited。
 func (m *Manager) Generate(key string) (string, error) {
-	if !m.interval.Allow("vc:interval:"+key, m.sendInterval) {
+	// 间隔为 0 表示该维度关闭，此时不做存储读写，避免无意义的 key 残留。
+	if m.sendInterval > 0 && !m.interval.Allow("vc:interval:"+key, m.sendInterval) {
 		return "", ErrIntervalLimited
 	}
-	if !m.count.Allow("vc:daily:"+key, m.dailyLimit, 24*time.Hour) {
+	if m.dailyLimit > 0 && !m.count.Allow("vc:daily:"+key, m.dailyLimit, 24*time.Hour) {
 		return "", ErrDailyLimited
 	}
 

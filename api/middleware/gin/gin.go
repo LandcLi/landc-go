@@ -99,13 +99,13 @@ func GinMiddlewareWithConfig(config *GinMiddlewareConfig) gin.HandlerFunc {
 		respJSON, err := json.Marshal(resp)
 		if err != nil {
 			blw.Header().Set("Content-Type", "application/json")
-			blw.WriteHeader(http.StatusInternalServerError)
+			blw.ResponseWriter.WriteHeader(http.StatusInternalServerError)
 			_, _ = blw.ResponseWriter.WriteString(`{"code":50000,"message":"internal server error","trace_id":"` + t.TraceID + `"}`)
 			return
 		}
 
 		blw.Header().Set("Content-Type", "application/json")
-		blw.WriteHeader(http.StatusOK)
+		blw.ResponseWriter.WriteHeader(blw.statusCode())
 		// 响应体写入失败时连接已不可用，记录到日志后交由上层处理
 		if _, err := blw.ResponseWriter.Write(respJSON); err != nil {
 			c.Error(err) //nolint:errcheck // gin 的 Error 仅用于记录，忽略其返回值
@@ -113,10 +113,18 @@ func GinMiddlewareWithConfig(config *GinMiddlewareConfig) gin.HandlerFunc {
 	}
 }
 
-// bodyLogWriter 拦截响应体的 Writer
+// bodyLogWriter 拦截响应体的 Writer。
+//
+// 它同时接管状态码：gin 的 responseWriter 在 WriteHeader 时只记录 status，
+// 真正写出去发生在 WriteHeaderNow（由 Write 触发）。因为本类型拦截了 Write，
+// 底层写入不会自动发生，若不显式记录 status，最终响应就只能由中间件
+// 无条件写 200 —— 这正是历史缺陷：handler 返回 400/500 时 HTTP 状态码仍为
+// 200，只有 body 里的业务 code 是对的，网关 / 监控 / 按状态码判断的客户端
+// 全部误判为成功。
 type bodyLogWriter struct {
 	gin.ResponseWriter
-	body *bytes.Buffer
+	body   *bytes.Buffer
+	status int
 }
 
 // Write 拦截写入，存储到 buffer 中
@@ -127,6 +135,25 @@ func (w *bodyLogWriter) Write(b []byte) (int, error) {
 // WriteString 拦截字符串写入
 func (w *bodyLogWriter) WriteString(s string) (int, error) {
 	return w.body.WriteString(s)
+}
+
+// WriteHeader 记录 handler 期望的状态码，不立即写到底层。
+// 最终状态码由中间件在构建完响应后统一写出。
+func (w *bodyLogWriter) WriteHeader(code int) {
+	if code > 0 {
+		w.status = code
+	}
+}
+
+// WriteHeaderNow 抑制隐式写出（gin 在 Write 时会调用），保证状态码由中间件决定。
+func (w *bodyLogWriter) WriteHeaderNow() {}
+
+// statusCode 返回最终应写出的状态码，未显式设置时为 200。
+func (w *bodyLogWriter) statusCode() int {
+	if w.status == 0 {
+		return http.StatusOK
+	}
+	return w.status
 }
 
 func buildGinResponse(c *gin.Context, blw *bodyLogWriter, t *trace.Trace, latency time.Duration, config *GinMiddlewareConfig) *core.Response {

@@ -5,6 +5,55 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.6] - 2026-10-25
+
+本次三模块同步发布：`frame v0.8.6`、`api v0.5.1`、`tools v0.7.1`。
+
+### 修复
+
+- **`other:` 段业务配置从未生效（全生态级缺陷）**。
+  `Config.Other` 的语义是「未在框架结构中声明的**顶层**键」，但历史文档指导
+  把业务配置写在 `other:` 段下。解析后实际得到 `Other["other"] = {...}`，
+  于是 `GetOther("gin_mode")` 恒为空 —— 配置写了不生效、也没有任何报错线索，
+  只能靠打印原始 `Other` 才能发现多套了一层。
+  现在 `UnmarshalJSON` / `UnmarshalYAML` 结束时调用 `flattenOtherSection`，
+  把 `other` 段子键提升一层，两种写法都能读到；顶层同名键优先。
+  原始 `Other["other"]` 保留不动，回写配置不会丢结构。
+- **HTTP 状态码被日志中间件吞掉（`api v0.5.1`）**。
+  `GinMiddleware` 的 `bodyLogWriter` 只拦截 `Write` 取 body、不记录状态码；
+  而 gin 的 header 要等 `Write` 时才真正写出，被拦截后底层从未写出，
+  中间件末尾又无条件 `WriteHeader(200)`。结果 handler 明确返回 400/500 时，
+  **HTTP 状态码仍是 200**，只有 body 里的业务 `code` 是对的。
+  参数校验失败、鉴权失败、内部错误在网关、APM、健康检查和按状态码判断的
+  客户端眼里全部是「成功」。现在 `bodyLogWriter` 重写 `WriteHeader` 记录状态、
+  抑制 `WriteHeaderNow` 的隐式写出，末尾按 `statusCode()` 回写。
+- **`tools/verifycode` 传 0 无法关闭间隔/日上限限制**。
+  `WithSendInterval(0)` 此前被当成「0 间隔」仍走入比较逻辑，在时钟精度不足的
+  平台（Windows 下 1ns 不可分辨）会把所有请求判为「太频繁」，导致日上限分支
+  永远测不到、业务上也无法真正关掉限流。现在两个选项都以 `0` 表示关闭该维度，
+  `Generate` 用 `> 0` 判断，关闭时不产生无意义的计数 key。
+
+### 新增
+
+- **`Config.GetOtherPath(path ...string)` / `GetOtherString` / `GetOtherBool`**：
+  按嵌套路径读取自定义配置，支持 `map[string]interface{}` 与
+  `map[interface{}]interface{}`（yaml.v2 兼容）。各业务系统此前各自实现了一份
+  下钻逻辑，且多有用 `GetOther` 取嵌套值而静默失效的情况，现统一由框架提供。
+- `tools/verifycode` 包注释补充限流降级策略：缓存故障时放行，**不可只依赖本包
+  防短信轰炸**，需在网关/风控层叠加限制。
+
+### 测试
+
+- `frame/pkg/config/other_path_test.go`：7 个子用例覆盖嵌套路径、类型不匹配、
+  nil receiver；另含 **真实 YAML/JSON 解析**用例（合成 map 会掩盖缺陷），
+  验证 `other:` 段提升、顶层业务键直读、顶层优先于 `other` 段。
+- `api/middleware/gin/status_test.go`：断言 200/400/500 原样透传，且成功响应的
+  `data` 未被吞掉。
+- `frame/pkg/cmd/cmd_test.go`：`newTestCommand` 置 `Bootstrap = nil`。
+  此前 `Command.Run` 的 bootstrap 会吞掉数据库连接错误，测试在无 MySQL 的 CI 上
+  「假通过」；v0.8.3 让 bootstrap 快速失败后暴露出 `dial tcp [::1]:3306`。
+  纯逻辑测试不应初始化配置与数据库。
+
 ## [0.8.5] - 2026-10-25
 
 ### 修复

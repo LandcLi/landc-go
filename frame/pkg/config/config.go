@@ -314,7 +314,51 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		}
 		c.Other[k] = val
 	}
+
+	flattenOtherSection(c.Other)
 	return nil
+}
+
+// flattenOtherSection 把 other 段的子键提升到 Other 顶层。
+//
+// Other 的语义是「未在框架结构中声明的顶层键」，因此业务配置应当直接写在
+// 配置文件顶层。但历史文档指导写成 other: { ... } 分组，解析后变成
+// Other["other"] = {...}，于是 GetOther("gin_mode") 永远取不到值 ——
+// 配置写了不生效，且没有任何报错线索。
+//
+// 这里把 other 段的子键提升一层，使两种写法都能被 GetOther / GetOtherPath
+// 读到；顶层同名键优先，不会被 other 段覆盖。
+func flattenOtherSection(other map[string]interface{}) {
+	section := asStringMap(other["other"])
+	if section == nil {
+		return
+	}
+	for k, v := range section {
+		if _, exists := other[k]; !exists {
+			other[k] = v
+		}
+	}
+}
+
+// asStringMap 把 yaml 解码出的映射统一成 map[string]interface{}。
+// yaml.v3 解码到 interface{} 时产出 map[string]interface{}，
+// 但 yaml.v2 及部分间接解码路径产出 map[interface{}]interface{}，
+// 两者都要兼容，否则读取会静默失败。
+func asStringMap(v interface{}) map[string]interface{} {
+	switch m := v.(type) {
+	case map[string]interface{}:
+		return m
+	case map[interface{}]interface{}:
+		out := make(map[string]interface{}, len(m))
+		for k, val := range m {
+			if ks, ok := k.(string); ok {
+				out[ks] = val
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 // MarshalJSON 自定义 JSON 序列化，将 Other 中的字段合并到顶层输出。
@@ -368,6 +412,8 @@ func (c *Config) UnmarshalYAML(value *yaml.Node) error {
 	} else {
 		c.Other = make(map[string]interface{})
 	}
+
+	flattenOtherSection(c.Other)
 	return nil
 }
 
@@ -409,6 +455,52 @@ func (c *Config) GetOther(key string) (interface{}, bool) {
 	}
 	v, ok := c.Other[key]
 	return v, ok
+}
+
+// GetOtherPath 按嵌套路径读取 other 段的自定义配置。
+//
+// GetOther 只能取顶层 key，无法表达 other.server.gin_mode 这类层级结构；
+// 各业务系统过去为此各自写了一份下钻逻辑（且误用 GetOther 时取值恒为空、
+// 配置静默失效）。这里统一提供，业务系统不要再重复实现。
+//
+//	v, ok := cfg.GetOtherPath("server", "gin_mode")
+func (c *Config) GetOtherPath(path ...string) (interface{}, bool) {
+	if c == nil || len(path) == 0 {
+		return nil, false
+	}
+	var cur interface{} = c.Other
+	for _, key := range path {
+		m := asStringMap(cur)
+		if m == nil {
+			return nil, false
+		}
+		next, ok := m[key]
+		if !ok {
+			return nil, false
+		}
+		cur = next
+	}
+	return cur, true
+}
+
+// GetOtherString 按嵌套路径读取字符串型自定义配置，缺失或类型不符返回空串。
+func (c *Config) GetOtherString(path ...string) string {
+	if v, ok := c.GetOtherPath(path...); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// GetOtherBool 按嵌套路径读取布尔型自定义配置，第二个返回值表示是否命中。
+func (c *Config) GetOtherBool(path ...string) (bool, bool) {
+	if v, ok := c.GetOtherPath(path...); ok {
+		if b, ok := v.(bool); ok {
+			return b, true
+		}
+	}
+	return false, false
 }
 
 // SetOther 设置 Other 中指定 key 的值。

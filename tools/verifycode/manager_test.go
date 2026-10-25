@@ -124,7 +124,10 @@ func TestSendIntervalLimited(t *testing.T) {
 }
 
 func TestDailyLimit(t *testing.T) {
-	m := NewManager(newMemoryStore(), WithDailyLimit(3), WithSendInterval(time.Nanosecond))
+	// 关闭发送间隔，单独验证日上限。
+	// 此前用 time.Nanosecond 做间隔，在时钟精度不足 1ns 的平台（如 Windows）
+	// 上 Exists 仍判定未过期，请求全被间隔拦下，日上限永远测不到。
+	m := NewManager(newMemoryStore(), WithDailyLimit(3), WithSendInterval(0))
 	limited := false
 	for i := 0; i < 5; i++ {
 		_, err := m.Generate("k")
@@ -135,6 +138,16 @@ func TestDailyLimit(t *testing.T) {
 	}
 	if !limited {
 		t.Error("should hit daily limit after 3 sends")
+	}
+}
+
+// TestLimitsDisabled 验证间隔与日上限传 0 时完全关闭，可连续生成。
+func TestLimitsDisabled(t *testing.T) {
+	m := NewManager(newMemoryStore(), WithSendInterval(0), WithDailyLimit(0))
+	for i := 0; i < 20; i++ {
+		if _, err := m.Generate("k"); err != nil {
+			t.Fatalf("generate #%d = %v, want ok (limits disabled)", i+1, err)
+		}
 	}
 }
 
