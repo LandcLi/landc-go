@@ -3,9 +3,9 @@ module github.com/LandcLi/landc-go/frame
 go 1.26
 
 require (
-	github.com/LandcLi/landc-go/api v0.5.0
+	github.com/LandcLi/landc-go/api v0.5.1
 	github.com/LandcLi/landc-go/log v0.5.0
-	github.com/LandcLi/landc-go/tools v0.7.0
+	github.com/LandcLi/landc-go/tools v0.7.1
 	github.com/gin-gonic/gin v1.11.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-playground/validator/v10 v10.30.1
