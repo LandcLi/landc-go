@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -381,8 +382,10 @@ func loadPEMKey(path string, isPrivate bool) (any, error) {
 // 私钥支持：PKCS#1 RSA / SEC1 EC / PKCS#8（RSA 与 EC）
 // 公钥支持：PKIX / PKCS#1 RSA / X.509 证书
 func parsePEMFile(path string, isPrivate bool) (any, error) {
-	// 私钥文件权限必须 ≤ 0600，防止被同机其他用户读取
-	if isPrivate {
+	// 私钥文件权限必须 ≤ 0600，防止被同机其他用户读取。
+	// Windows 未实现 POSIX 权限位（os.Stat 恒为 0666），权限校验无意义且会误报，
+	// 因此仅在类 Unix 系统上执行。
+	if isPrivate && runtime.GOOS != "windows" {
 		info, err := os.Stat(path)
 		if err != nil {
 			return nil, fmt.Errorf("stat key file %s: %w", path, err)

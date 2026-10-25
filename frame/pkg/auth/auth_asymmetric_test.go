@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -217,6 +218,9 @@ func TestPEMInvalidPath(t *testing.T) {
 
 // TestPrivateKeyInsecurePermissions 验证私钥文件权限过宽时被拒绝
 func TestPrivateKeyInsecurePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows 不实现 POSIX 权限位，私钥权限校验（及本用例断言的拒绝行为）不适用")
+	}
 	priv := genRSAKey(t)
 	privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 

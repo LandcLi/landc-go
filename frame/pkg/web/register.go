@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -95,4 +96,22 @@ func registerHandlers(router gin.IRouter, instance interface{}, opts ...Register
 	}
 
 	return routes, nil
+}
+
+// RegisterHandlers 将控制器注册到任意 gin.IRouter（gin.Engine 或 gin.RouterGroup）。
+//
+// 与 Server.RegisterHandler 的区别：不登记到 Server 的路由表，因此不参与
+// Server.Routes() / Controllers() 的文档生成。适用于「库模式」——宿主服务
+// 已经有自己的 gin 引擎（例如进程内组合多个业务系统），只想把本系统的控制器
+// 挂到指定路由上。
+//
+// 返回值是该控制器最终生效的路由列表，便于宿主自行记录或生成文档。
+func RegisterHandlers(router gin.IRouter, instance interface{}, opts ...RegisterOption) ([]RouteInfo, error) {
+	if router == nil {
+		return nil, errors.New("web: router must not be nil")
+	}
+	if instance == nil {
+		return nil, errors.New("web: controller instance must not be nil")
+	}
+	return registerHandlers(router, instance, opts...)
 }

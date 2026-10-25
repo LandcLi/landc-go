@@ -5,6 +5,39 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.3] - 2026-10-25
+
+### 新增
+
+- **`web.RegisterHandlers(router, instance, opts...)`（导出）**：把控制器注册到任意
+  `gin.IRouter`（`gin.Engine` / `gin.RouterGroup`），返回最终生效的路由列表。
+  用于「库模式」——宿主服务已有自己的 gin 引擎（例如进程内组合 SSO + UserManager +
+  Permission 等多个业务系统），只需把各系统控制器挂到指定前缀，无需为每个系统创建
+  临时 `Server` 再复制路由表。`Server.RegisterHandler` 与 `RouterGroup.RegisterHandler`
+  行为不变。
+
+### 修复
+
+- **SQLite 驱动依赖 CGO，`CGO_ENABLED=0` 环境无法运行**：`frame/pkg/db` 的 sqlite
+  dialector 由 `gorm.io/driver/sqlite`（`mattn/go-sqlite3`，需 CGO + gcc）切换为
+  `github.com/glebarez/sqlite`（`modernc.org/sqlite`，纯 Go）。影响面：Windows 无 gcc、
+  交叉编译产物、Alpine 精简镜像均可直接使用 SQLite。`mattn/go-sqlite3` 从依赖树移除。
+- **SQLite DSN 未做规范化**：`dsn` 为空时回落到 `data/landc.db`；文件型库自动创建父目录
+  （此前 modernc 报 `unable to open database file`）；自动补齐
+  `busy_timeout(5000)` / `journal_mode(WAL)` / `foreign_keys(1)` 三个 pragma，
+  调用方显式配置同类 pragma 时不重复追加（按 pragma 函数名判重，而非 `_pragma=` 前缀）。
+  内存库（`:memory:` / `mode=memory`）跳过目录处理。
+- **PEM 私钥权限校验在 Windows 上误报**：Windows 不实现 POSIX 权限位（`os.Stat` 恒为
+  `0666`），原校验会让所有私钥加载失败。现仅在非 Windows 平台执行该校验。
+- **文件型 SQLite 句柄未关闭导致测试清理失败**：集成测试改为 `t.Cleanup` 关闭
+  `*sql.DB`，避免 WAL 文件被占用时 `TempDir` 的 `RemoveAll` 失败
+  （Windows 上表现为 `The process cannot access the file`）。
+
+### 测试
+
+- 新增 `frame/pkg/db/drivers_test.go`：覆盖 DSN 缺省值、父目录创建、内存库跳过、
+  调用方 pragma 判重，以及在无 CGO 前提下真实打开库并完成建表/写入/读回。
+
 ## [0.8.2] - 2026-08-11
 
 ### 修复

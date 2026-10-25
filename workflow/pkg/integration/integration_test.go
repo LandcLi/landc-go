@@ -19,7 +19,7 @@ import (
 	"github.com/LandcLi/landc-go/workflow/pkg/model"
 	"github.com/LandcLi/landc-go/workflow/pkg/observer"
 	"github.com/LandcLi/landc-go/workflow/pkg/store"
-	sqlite "gorm.io/driver/sqlite"
+	sqlite "github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -76,6 +76,12 @@ func newTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
+	// 文件型 SQLite（WAL）持有文件句柄，需在 TempDir 清理前关闭，否则 Windows 上 RemoveAll 失败
+	t.Cleanup(func() {
+		if sqlDB, dbErr := db.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
 	if err := db.AutoMigrate(&BusinessRecord{}, &saasmodel.Tenant{}, &saasmodel.DataOwnership{}, &saasmodel.DataAccess{}, &saasmodel.DataShareLog{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}

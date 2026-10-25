@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/LandcLi/landc-go/frame/pkg/config"
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

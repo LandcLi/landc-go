@@ -25,7 +25,7 @@ import (
 	"github.com/LandcLi/landc-go/frame/pkg/response"
 	"github.com/LandcLi/landc-go/frame/pkg/web"
 	"github.com/gin-gonic/gin"
-	sqlite "gorm.io/driver/sqlite"
+	sqlite "github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -194,6 +194,13 @@ func newTestServer(t *testing.T, cfg *config.Config) *gin.Engine {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
+	// 文件型 SQLite（WAL）会持有句柄，必须在 TempDir 清理前关闭，
+	// 否则 Windows 上 RemoveAll 会因文件被占用而失败。
+	t.Cleanup(func() {
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
 	if err := database.AutoMigrate(&Account{}); err != nil {
 		t.Fatalf("migrate account: %v", err)
 	}
