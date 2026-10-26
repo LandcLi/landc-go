@@ -41,7 +41,7 @@ func TestMiddlewarePreservesStatusCode(t *testing.T) {
 
 	for _, tc := range cases {
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+		req := httptest.NewRequest(http.MethodPost, tc.path, http.NoBody)
 		r.ServeHTTP(w, req)
 
 		if w.Code != tc.want {
@@ -61,7 +61,7 @@ func TestMiddlewareKeepsSuccessData(t *testing.T) {
 	})
 
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/ok", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/ok", http.NoBody))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)

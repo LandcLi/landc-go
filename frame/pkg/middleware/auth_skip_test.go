@@ -28,7 +28,7 @@ func TestAuthSkipsProbeEndpoints(t *testing.T) {
 	for _, p := range probes {
 		t.Run("probe"+p, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, p, nil)
+			req := httptest.NewRequest(http.MethodGet, p, http.NoBody)
 			r.ServeHTTP(w, req)
 
 			if w.Code != http.StatusOK {
@@ -39,7 +39,7 @@ func TestAuthSkipsProbeEndpoints(t *testing.T) {
 
 	t.Run("business path still requires token", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/protected", http.NoBody)
 		r.ServeHTTP(w, req)
 
 		if w.Code != http.StatusUnauthorized {
@@ -70,7 +70,7 @@ func TestAuthWithSkipExtra(t *testing.T) {
 
 	for _, c := range cases {
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(c.method, c.path, nil)
+		req := httptest.NewRequest(c.method, c.path, http.NoBody)
 		r.ServeHTTP(w, req)
 		if w.Code != c.want {
 			t.Errorf("%s %s: want %d, got %d body=%s", c.method, c.path, c.want, w.Code, w.Body.String())

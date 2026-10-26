@@ -493,8 +493,8 @@ func (c *Config) GetOtherString(path ...string) string {
 	return ""
 }
 
-// GetOtherBool 按嵌套路径读取布尔型自定义配置，第二个返回值表示是否命中。
-func (c *Config) GetOtherBool(path ...string) (bool, bool) {
+// GetOtherBool 按嵌套路径读取布尔型自定义配置，ok 表示是否命中且类型正确。
+func (c *Config) GetOtherBool(path ...string) (val, ok bool) {
 	if v, ok := c.GetOtherPath(path...); ok {
 		if b, ok := v.(bool); ok {
 			return b, true
