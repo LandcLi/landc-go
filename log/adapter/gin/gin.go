@@ -48,13 +48,21 @@ func (g *GinLogger) Logger() gin.HandlerFunc {
 
 		// 请求IP
 		clientIP := c.ClientIP()
-		traceID := c.Request.Header.Get("X-Trace-ID")
+
+		// trace_id 取值顺序：
+		//  1. gin.Context —— createHandler / middleware.Trace 写入的位置；
+		//  2. 请求头 X-Trace-ID —— 上游网关或调用方注入；
+		//  3. 兜底用纳秒时间戳（保证字段不空，但**不可用于跨服务关联**）。
+		//
+		// 历史缺陷：这里原本读 c.Request.Context().Value("trace_id")，而 trace 包
+		// 用的是自定义类型 key，字符串永远取不到 —— 于是日志里的 trace_id 一直是
+		// 第 3 种兜底值，看着有字段、实际无法把同一请求的多条日志串起来。
+		traceID := c.GetString("trace_id")
 		if traceID == "" {
-			var ok bool
-			traceID, ok = c.Request.Context().Value("trace_id").(string)
-			if !ok {
-				traceID = fmt.Sprintf("%d", time.Now().UnixNano())
-			}
+			traceID = c.Request.Header.Get("X-Trace-ID")
+		}
+		if traceID == "" {
+			traceID = fmt.Sprintf("%d", time.Now().UnixNano())
 		}
 
 		// 日志字段
