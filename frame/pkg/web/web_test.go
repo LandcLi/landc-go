@@ -346,7 +346,7 @@ func TestEnsureTraceIDPropagatesUpstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET", "/x", nil)
+	c.Request = httptest.NewRequest("GET", "/x", http.NoBody)
 	c.Request.Header.Set("X-Trace-ID", "upstream-abc")
 
 	got := ensureTraceID(c)
@@ -366,7 +366,7 @@ func TestEnsureTraceIDGeneratesWhenAbsent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET", "/x", nil)
+	c.Request = httptest.NewRequest("GET", "/x", http.NoBody)
 
 	got := ensureTraceID(c)
 	if got == "" {
