@@ -12,6 +12,7 @@ import (
 	apihealth "github.com/LandcLi/landc-go/api/health"
 	ginmw "github.com/LandcLi/landc-go/api/middleware/gin"
 	framemiddleware "github.com/LandcLi/landc-go/frame/pkg/middleware"
+	ginlogger "github.com/LandcLi/landc-go/log/adapter/gin"
 	"github.com/LandcLi/landc-go/frame/pkg/auth"
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/health"
@@ -84,10 +85,21 @@ func NewServer(cfg *ServerConfig) *Server {
 	}
 
 	s := &Server{
-		engine: gin.Default(),
+		engine: gin.New(),
 		config: cfg,
 		routes: &routeRegistry{},
 	}
+
+	// 访问日志与 panic 恢复统一用框架自己的实现，而不是 gin 自带的。
+	//
+	// 原因：gin.Default() 附带的 Logger 只打 `[GIN] 200 | 1ms | POST /x` 这种
+	// 固定文本，不含 trace_id —— 出问题时无法把同一个请求在多个服务里的日志串起来。
+	// 框架的适配器会输出结构化字段（status/method/uri/ip/latency/trace_id）。
+	//
+	// 顺序：日志在最外层（这样 panic 恢复后的 500 也能被记录），随后是恢复。
+	accessLogger := ginlogger.NewGinLogger(facade.GetLogger())
+	s.engine.Use(accessLogger.Logger())
+	s.engine.Use(accessLogger.Recovery())
 
 	// 自动初始化 JWT（从全局配置的 jwt 段；未配置时为 no-op）。
 	// 保证 web.NewServer 直接启动链路与 bootstrap 链路行为一致：
