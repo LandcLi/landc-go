@@ -10,6 +10,7 @@ import (
 
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
+	"github.com/LandcLi/landc-go/frame/pkg/trace"
 	"github.com/gin-gonic/gin"
 )
 
@@ -333,5 +334,47 @@ func assertJSONBody(t *testing.T, got, want string) {
 	delete(gotMap, "trace_id")
 	if !reflect.DeepEqual(gotMap, wantMap) {
 		t.Errorf("响应不符\n got: %s\nwant: %s", got, want)
+	}
+}
+
+// TestEnsureTraceIDPropagatesUpstream 没有 trace 中间件时，必须沿用上游传来的 X-Trace-ID。
+//
+// 分布式追踪的核心语义：网关/调用方注入的 ID 要一路带下去。
+// 如果这里改成自己生成一个，同一个请求在各服务里各有各的 ID，日志永远串不起来。
+func TestEnsureTraceIDPropagatesUpstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/x", nil)
+	c.Request.Header.Set("X-Trace-ID", "upstream-abc")
+
+	got := ensureTraceID(c)
+	if got != "upstream-abc" {
+		t.Errorf("trace_id = %q, want upstream-abc（未沿用上游）", got)
+	}
+	if ctxTrace := trace.TraceID(c.Request.Context()); ctxTrace != "upstream-abc" {
+		t.Errorf("request context 中的 trace_id = %q, want upstream-abc", ctxTrace)
+	}
+	if h := w.Header().Get("X-Trace-ID"); h != "upstream-abc" {
+		t.Errorf("响应头 X-Trace-ID = %q, want upstream-abc", h)
+	}
+}
+
+// TestEnsureTraceIDGeneratesWhenAbsent 上游没带时必须生成一个，且写进 context 与响应头。
+func TestEnsureTraceIDGeneratesWhenAbsent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/x", nil)
+
+	got := ensureTraceID(c)
+	if got == "" {
+		t.Fatal("trace_id 不应为空")
+	}
+	if trace.TraceID(c.Request.Context()) == "" {
+		t.Error("trace_id 未写入 request context，下游 ProxyClient 取不到")
+	}
+	if w.Header().Get("X-Trace-ID") == "" {
+		t.Error("trace_id 未写入响应头")
 	}
 }

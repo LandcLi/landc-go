@@ -31,6 +31,17 @@ func ensureTraceID(c *gin.Context) string {
 		}
 		return id
 	}
+
+	// 没有 trace 中间件时，优先沿用上游传进来的 X-Trace-ID。
+	// 这是分布式追踪的核心语义：网关或调用方注入的 ID 必须一路带下去，
+	// 否则同一个请求在各服务里各生成一个 ID，日志永远串不起来。
+	if id := c.GetHeader("X-Trace-ID"); id != "" {
+		c.Set("trace_id", id)
+		c.Request = c.Request.WithContext(trace.WithTraceID(c.Request.Context(), id))
+		c.Header("X-Trace-ID", id)
+		return id
+	}
+
 	id := generate.UUID()
 	c.Set("trace_id", id)
 	// 同步写入 request context：跨服务调用（di.ProxyClient）从这里取 trace_id
