@@ -140,9 +140,7 @@ func TestErrorTransmission(t *testing.T) {
 			if w.Code != tt.wantStatus {
 				t.Errorf("status = %d, want %d", w.Code, tt.wantStatus)
 			}
-			if w.Body.String() != tt.wantBody {
-				t.Errorf("body = %s, want %s", w.Body.String(), tt.wantBody)
-			}
+			assertJSONBody(t, w.Body.String(), tt.wantBody)
 		})
 	}
 }

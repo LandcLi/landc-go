@@ -1,8 +1,10 @@
 package web
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -142,9 +144,7 @@ func TestRegisterHandler(t *testing.T) {
 
 		// Response is wrapped in standard response format
 		expectedBody := `{"code":10000,"data":{"id":999,"name":"GroupTest"},"message":"success"}`
-		if w.Body.String() != expectedBody {
-			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
-		}
+		assertJSONBody(t, w.Body.String(), expectedBody)
 	})
 
 	t.Run("Test context parameter", func(t *testing.T) {
@@ -172,9 +172,7 @@ func TestRegisterHandler(t *testing.T) {
 
 		// Response is wrapped in standard response format
 		expectedBody := `{"code":10000,"data":{"id":123,"received":"custom-value"},"message":"success"}`
-		if w.Body.String() != expectedBody {
-			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
-		}
+		assertJSONBody(t, w.Body.String(), expectedBody)
 	})
 }
 
@@ -206,9 +204,7 @@ func TestParamParsing(t *testing.T) {
 
 		// Response is wrapped in standard response format
 		expectedBody := `{"code":10000,"data":{"id":456,"name":"John"},"message":"success"}`
-		if w.Body.String() != expectedBody {
-			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
-		}
+		assertJSONBody(t, w.Body.String(), expectedBody)
 	})
 
 	t.Run("Parse query parameter", func(t *testing.T) {
@@ -223,9 +219,7 @@ func TestParamParsing(t *testing.T) {
 
 		// Response is wrapped in standard response format
 		expectedBody := `{"code":10000,"data":{"id":789,"name":"Alice"},"message":"success"}`
-		if w.Body.String() != expectedBody {
-			t.Errorf("Expected body %s, got %s", expectedBody, w.Body.String())
-		}
+		assertJSONBody(t, w.Body.String(), expectedBody)
 	})
 }
 
@@ -320,5 +314,24 @@ func TestIsExported(t *testing.T) {
 				t.Errorf("isExported(%s) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+// assertJSONBody 断言响应体与期望的 JSON 结构一致，忽略 trace_id。
+//
+// trace_id 是每个请求随机生成的，createHandler 会为所有响应补上它。
+// 对响应「结构」的严格比对不应该因为这一个随机字段而失败，
+// 但其余字段仍需精确匹配（防止响应结构被无意改动）。
+func assertJSONBody(t *testing.T, got, want string) {
+	t.Helper()
+	var gotMap, wantMap map[string]interface{}
+	if err := json.Unmarshal([]byte(got), &gotMap); err != nil {
+		t.Fatalf("响应不是合法 JSON: %s", got)
+	}
+	if err := json.Unmarshal([]byte(want), &wantMap); err != nil {
+		t.Fatalf("期望值不是合法 JSON: %s", want)
+	}
+	delete(gotMap, "trace_id")
+	if !reflect.DeepEqual(gotMap, wantMap) {
+		t.Errorf("响应不符\n got: %s\nwant: %s", got, want)
 	}
 }

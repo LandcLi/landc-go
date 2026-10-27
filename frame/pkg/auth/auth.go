@@ -2,8 +2,10 @@ package auth
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -276,11 +278,32 @@ func GenerateTokenWithOpts(userID uint, username string, opt GenerateTokenOption
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    cfg.Issuer,
+			// jti：JWT 唯一标识（RFC 7519 §4.1.7）。
+			//
+			// 不填会出大问题：同一用户在同一秒内多次签发，claims 全部相同
+			// （user_id/scope/ip/指纹/iat 都一样），签名也就完全一致 ——
+			// 两次登录拿到**一模一样的字符串**。后果：
+			//   - 按令牌查库时永远命中最早那条记录，撤销其中一个等于撤销全部；
+			//   - 并发会话限制（踢掉最旧的）无法区分会话，形同虚设；
+			//   - 审计日志里无法区分到底是哪一次登录的令牌。
+			ID: newJTI(),
 		},
 	}
 
 	token := jwt.NewWithClaims(method, claims)
 	return token.SignedString(signingKey)
+}
+
+// newJTI 生成 128 位随机令牌标识。
+//
+// 随机源不可用时退回纳秒时间戳 —— 理论上会牺牲唯一性，但比完全无法签发令牌好，
+// 且 crypto/rand 在现代系统上几乎不会失败。
+func newJTI() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("ts-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }
 
 // ParseToken 解析并验证 JWT Token

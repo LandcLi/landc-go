@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/LandcLi/landc-go/frame/pkg/meta"
+	"github.com/LandcLi/landc-go/frame/pkg/trace"
 )
 
 // proxyFactories stores registered proxy factories keyed by gateway name.
@@ -325,6 +326,17 @@ func (p *proxyDispatcher) call(ctx context.Context, methodName string, req, resp
 	httpReq.Header.Set("Content-Type", "application/json")
 	for k, v := range p.headers {
 		httpReq.Header.Set(k, v)
+	}
+
+	// 透传链路追踪：把上游请求的 trace_id 带给下游服务。
+	//
+	// 没有这一步，一次跨服务调用在两个服务的日志里是两个不相干的 ID ——
+	// 出问题时无法把 A 的入口日志和 B 的异常日志串起来。
+	// 显式配置的静态 header 优先（调用方可自行覆盖）。
+	if _, configured := p.headers["X-Trace-ID"]; !configured {
+		if traceID := trace.TraceID(ctx); traceID != "" {
+			httpReq.Header.Set("X-Trace-ID", traceID)
+		}
 	}
 
 	resp, err := p.httpClient.Do(httpReq)
