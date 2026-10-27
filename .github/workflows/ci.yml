@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    # dev 是本仓库实际开发分支（push 都落在这里），此前漏了它，
+    # 导致日常提交完全不触发 CI，只有打 tag 时的 Release 会跑。
+    branches: [main, master, dev, develop]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master, dev, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
