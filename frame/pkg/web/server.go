@@ -11,6 +11,7 @@ import (
 
 	apihealth "github.com/LandcLi/landc-go/api/health"
 	ginmw "github.com/LandcLi/landc-go/api/middleware/gin"
+	framemiddleware "github.com/LandcLi/landc-go/frame/pkg/middleware"
 	"github.com/LandcLi/landc-go/frame/pkg/auth"
 	"github.com/LandcLi/landc-go/frame/pkg/config"
 	"github.com/LandcLi/landc-go/frame/pkg/health"
@@ -99,12 +100,24 @@ func NewServer(cfg *ServerConfig) *Server {
 	return s
 }
 
-// registerBuiltin 自动注册框架级中间件（请求超时等）和默认路由（健康检查等）。
+// registerBuiltin 自动注册框架级中间件（链路追踪、请求超时）和默认路由（健康检查等）。
 func (s *Server) registerBuiltin() {
 	globalCfg := config.GetConfig()
 	if globalCfg == nil {
 		return
 	}
+
+	// 链路追踪：所有服务默认带上 trace_id。
+	//
+	// 此前 trace_id 只有主动挂了 GinMiddleware 或 Trace 的服务才有，
+	// 而 web.NewServer 两者都不挂 —— 于是「配了链路追踪」的系统里，
+	// 有的接口响应带 trace_id、有的不带，原生 gin handler 更是完全没有，
+	// 排查问题时拿不到标识去串日志。
+	//
+	// 这个中间件幂等：先读上游传入的 X-Trace-ID（网关注入），没有就生成；
+	// 写入 gin.Context、request context（供 di.ProxyClient 往下游透传）
+	// 与响应头。即使服务已经自己挂了 Trace，重复执行也只是覆盖同一个值。
+	s.engine.Use(framemiddleware.Trace())
 
 	// 注册请求超时中间件
 	if globalCfg.Server.RequestTimeout > 0 {
